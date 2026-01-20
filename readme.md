@@ -1,6 +1,5 @@
 # Kartawarta
 A microservices trading‑card app: a React Native + Expo frontend, a Python/FastAPI backend for collections and pricing, and a separate vision service (OpenCV SIFT + FAISS) that identifies cards from photos using Cardmarket data.
-https://github.com/user-attachments/assets/d6d913be-3ad3-409d-9b0f-5c33ced4bb3e
 
 # Setup
 
@@ -125,15 +124,6 @@ graph TB
     SCR_CM --> DESCRIPTOR_ENGINE
     
 
-
-    %% --- Stylizacja ---
-    style Klient fill:#f5f5f5,stroke:#333
-    style Mikroserwisy fill:#ffffff,stroke:#333,stroke-dasharray: 5 5
-    style SerwisGlowny fill:#e3f2fd,stroke:#2196f3
-    style SerwisCV fill:#ffebee,stroke:#f44336
-    style SerwisPrzetwarzania fill:#fff3e0,stroke:#ff9800
-    style DostawcyDanych fill:#f1f8e9,stroke:#4caf50
-    style WarstwaDanych fill:#fafafa,stroke:#ff9800,stroke-width:2px
 
 ```
 
@@ -273,3 +263,18 @@ Frontend hooks and context:
 - Per-TCG indexes reduce search space and latency.
 - FastAPI async + semaphores control concurrency for CPU-bound matching.
 
+## 9. UI
+<img width="1802" height="945" alt="mobile" src="https://github.com/user-attachments/assets/4bd7f7a2-45c3-4522-917b-01abab0fd77a" />
+
+
+
+https://github.com/user-attachments/assets/28560a62-004e-4dd7-975b-653e9ab8e107
+
+
+
+https://github.com/user-attachments/assets/ba49356a-397e-49c3-afb4-d4319a1b8317
+
+
+## Legal
+
+All card data & prices and pictures of cards comes from https://cardmarket.com/ and all credits for data & images go to them.
