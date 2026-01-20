@@ -1,6 +1,16 @@
 # Kartawarta
 A microservices trading‑card app: a React Native + Expo frontend, a Python/FastAPI backend for collections and pricing, and a separate vision service (OpenCV SIFT + FAISS) that identifies cards from photos using Cardmarket data.
 
+# Clone
+The repos are submodules, so make sure to pull them using git sumbodule 
+
+```
+git clone https://github.com/elkolorado/kartawarta.git
+git submodule update --init --recursive
+```
+
+
+
 # Setup
 
 
