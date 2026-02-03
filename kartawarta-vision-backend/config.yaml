@@ -12,8 +12,12 @@ environments:
         tcg_id: 5
         tcg_name: "Riftbound"
         nprobes: 4
+      - name: dbs
+        tcg_id: 1
+        tcg_name: "DragonBallSuper"
+        nprobes: 32
     card_images_path: "card_images"
-    details_service_url: "http://localhost:8000"
+    details_service_url: "https://scaling-tribble-qv4756579p5c9g9q-8000.app.github.dev"
   prod:
     supported_tcgs:
       - name: riftbound

@@ -39,7 +39,7 @@ export default CardContext;
 export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [cardData, setCardData] = useState<CollectionItem[]>([]);
     const [allCards, setAllCards] = useState<CollectionItem[]>([]);
-    const [tcgName, setTcgName] = useState<string>('dragon ball fusion world');
+    const [tcgName, setTcgName] = useState<string>('DragonBallSuper');
     const [tcgId, setTcgId] = useState<number | null>(null);
     const { session } = useSession();
 

@@ -195,7 +195,7 @@ def get_cards_by_tcg_name(tcg_name: str):
             FROM Card
             JOIN Expansion ON Card.expansion_id = Expansion.id
             JOIN TCG ON Expansion.tcg_id = TCG.id
-            WHERE TCG.name = %s
+            WHERE TCG.cardMarketName = %s
         ''', (tcg_name,))
         return list(cursor.fetchall())
 
@@ -210,7 +210,7 @@ def get_cards_with_prices_by_tcg_name(tcg_name: str):
             JOIN Expansion ON Card.expansion_id = Expansion.id
             JOIN TCG ON Expansion.tcg_id = TCG.id
             LEFT JOIN CardDetail ON Card.id = CardDetail.card_id
-            WHERE TCG.name = %s
+            WHERE TCG.cardMarketName = %s
         ''', (tcg_name,))
         return list(cursor.fetchall())
 

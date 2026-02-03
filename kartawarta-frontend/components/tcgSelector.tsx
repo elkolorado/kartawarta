@@ -5,12 +5,12 @@ import { useCardContext } from '@/context/CardContext';
 import { colors } from '@/constants/themeColors';
 
 const AVAILABLE_TCGS = [
-  { id: 1,name: 'dragon ball fusion world', label: 'Fusion World', color: '#3b82f6' },
+  { id: 1,name: 'DragonBallSuper', label: 'Fusion World', color: '#3b82f6' },
   { id: 5,name: 'riftbound', label: 'Riftbound', color: '#7c3aed' },
-  { id: 3,name: 'one piece', label: 'One Piece', color: '#10b981' },
-  { id: 1006, name: 'pokemon', label: 'Pokemon', color: '#ef4444' },
-  { id: 4, name: "magic: the gathering", label: 'Magic', color: '#f59e0b' },
-  { id: 1007, name: 'digimon', label: 'Digimon', color: '#ec4899' },
+  // { id: 3,name: 'one piece', label: 'One Piece', color: '#10b981' },
+  // { id: 1006, name: 'pokemon', label: 'Pokemon', color: '#ef4444' },
+  // { id: 4, name: "magic: the gathering", label: 'Magic', color: '#f59e0b' },
+  // { id: 1007, name: 'digimon', label: 'Digimon', color: '#ec4899' },
 ];
 
 const TCGSelector = () => {

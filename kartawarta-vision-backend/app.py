@@ -17,7 +17,7 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8081", "http://127.0.0.1:5500/", "http://192.168.1.22:8081"],
+    allow_origins=["http://localhost:8081", "http://127.0.0.1:5500/", "http://192.168.1.22:8081", "https://scaling-tribble-qv4756579p5c9g9q-3000.app.github.dev"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
