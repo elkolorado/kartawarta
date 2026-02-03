@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+build/
+dist/
+indexes
+temp_descriptors.bin
+yolov8-cards-bb.pt
+yolov8-cards-binder.pt
+.venv
+*.egg-info
+.pytest_cache

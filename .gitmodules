@@ -1,9 +1,0 @@
-[submodule "kartawarta-frontend"]
-	path = kartawarta-frontend
-	url = https://github.com/elkolorado/kartawarta-frontend.git
-[submodule "kartawarta-backend"]
-	path = kartawarta-backend
-	url = https://github.com/elkolorado/kartawarta-backend.git
-[submodule "kartawarta-vision-backend"]
-	path = kartawarta-vision-backend
-	url = https://github.com/elkolorado/kartawarta-vision-backend.git

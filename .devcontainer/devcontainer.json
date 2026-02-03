@@ -1,0 +1,5 @@
+{
+  "name": "KartaWarta Setup",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "postCreateCommand": "bash setup.sh"
+}
