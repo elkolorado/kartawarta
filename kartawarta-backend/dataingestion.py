@@ -26,7 +26,7 @@ def run_scraper(strategy_name: str):
     strategy: CardmarketStrategy = strategy_cls()
     img_path = f"card_images/{strategy.tcg_cm_name}"
 
-    strategy.import_tcg_and_expansions_to_db()
+    # strategy.import_tcg_and_expansions_to_db()
     strategy.import_products_json_to_db(strategy.cm_products_json_path)
     strategy.import_json_prices_to_db(strategy.cm_price_guide_json_path)
     strategy.import_images_from_products_json(strategy.cm_products_json_path, img_path)

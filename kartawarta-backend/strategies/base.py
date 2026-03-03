@@ -382,7 +382,7 @@ class CardmarketStrategy:
                 or "[Fusion World]" in p.get('name', "") and p.get('idExpansion') == 4326
             ]
 
-        print("")
+        print("Total products to import:", len(products))
         expansion_cache = {}
         batch_data = []
         skipped = 0
@@ -393,13 +393,14 @@ class CardmarketStrategy:
         for p in products:
             pid = p.get(id_field)
             id_exp = p.get(expansion_field)
-
+            print(f"Processing product ID {pid} with expansion ID {id_exp}...")
             # 1. Map the 'wrong' expansion ID to the target ID (5645)
             is_exception = (id_exp == 4326)
             lookup_id = 5645 if is_exception else id_exp
 
             if pid is None or lookup_id is None:
                 skipped += 1
+                print(f"Skipping product ID {pid} due to missing ID or expansion ID.")
                 continue
 
             # 2. Cache lookup using the target ID
@@ -416,6 +417,7 @@ class CardmarketStrategy:
             cached = expansion_cache[lookup_id]
             if not cached:
                 skipped += 1
+                print(f"Skipping product ID {pid} due to missing expansion in DB.")
                 continue
 
             exp_id, exp_code = cached
@@ -423,7 +425,7 @@ class CardmarketStrategy:
             # 3. Handle the specific "UP" URL exception
             # If it's our exception case, force the code to 'UP' for the image path
             url_code = "UP" if is_exception else exp_code
-
+            print(f"Using URL code '{url_code}' for product ID {pid}")
             # Prepare record
             record = (
                 int(pid),
