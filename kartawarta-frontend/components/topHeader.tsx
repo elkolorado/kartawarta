@@ -6,10 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSession } from "@/hooks/useAuth";
 import { TAB_ROUTES } from "@/constants/tabRoutes";
 import { usePathname, useRouter } from "expo-router";
-import { Picker } from '@react-native-picker/picker';
 import { useCardContext } from "@/context/CardContext";
-import PrimaryButton from "./primaryButton";
 import TCGSelector from "./tcgSelector";
+import { getTcgPath } from "@/constants/tcgs";
 type Props = {
     navigation?: any;
     route?: any;
@@ -21,11 +20,78 @@ const TopHeader: React.FC<Props> = ({ navigation, route, options }) => {
     const { logout } = useSession();
     const router = useRouter();
     const pathname = usePathname();
-    const { tcgName, setTcgName } = useCardContext();
-    const tcgs = [
-        'dragon ball fusion world',
-        'riftbound'
-    ];
+    const { tcgName } = useCardContext();
+
+    const getBrowserPathname = () => {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            return window.location.pathname;
+        }
+
+        return pathname;
+    };
+
+    const [currentPathname, setCurrentPathname] = React.useState(getBrowserPathname);
+
+    const getTabPath = (tabName: string) => getTcgPath(tcgName, tabName);
+    const [hasHydrated, setHasHydrated] = React.useState(Platform.OS !== 'web');
+
+    React.useEffect(() => {
+        setHasHydrated(true);
+        setCurrentPathname(getBrowserPathname());
+
+        if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+        const syncPathname = () => setCurrentPathname(window.location.pathname);
+        const originalPushState = window.history.pushState;
+        const originalReplaceState = window.history.replaceState;
+
+        window.history.pushState = function (...args) {
+            originalPushState.apply(this, args);
+            syncPathname();
+        };
+
+        window.history.replaceState = function (...args) {
+            originalReplaceState.apply(this, args);
+            syncPathname();
+        };
+
+        window.addEventListener('popstate', syncPathname);
+
+        return () => {
+            window.history.pushState = originalPushState;
+            window.history.replaceState = originalReplaceState;
+            window.removeEventListener('popstate', syncPathname);
+        };
+    }, [pathname]);
+
+    const getActiveTabName = () => {
+        const browserPathname = Platform.OS === 'web' && typeof window !== 'undefined'
+            ? window.location.pathname
+            : currentPathname;
+        const pathnames = [browserPathname, currentPathname, pathname];
+        const matchedPathname = pathnames.find((value) => {
+            const segments = value.split('/').filter(Boolean);
+            const lastSegment = segments[segments.length - 1];
+
+            return lastSegment === 'cards' || lastSegment === 'collection';
+        });
+
+        if (matchedPathname) {
+            const segments = matchedPathname.split('/').filter(Boolean);
+            return segments[segments.length - 1];
+        }
+
+        const segments = browserPathname.split('/').filter(Boolean);
+        const lastSegment = segments[segments.length - 1];
+
+        if (lastSegment === 'login') return null;
+
+        return 'index';
+    };
+
+    const isActiveTab = (tabName: string) => {
+        return getActiveTabName() === tabName;
+    };
 
     return (
         <View style={[styles.container]}>
@@ -58,18 +124,24 @@ const TopHeader: React.FC<Props> = ({ navigation, route, options }) => {
             </View>
 
             {/* Bottom Row: Navigation Pills (Web Only) */}
-            {true && (
+            {hasHydrated && (
                 <View style={styles.bottomContainer}>
                     <View style={[styles.row, styles.bottomRow]}>
                         <View style={styles.navRow}>
                             {TAB_ROUTES.map((item) => {
-                                const itemPath = item.name === 'index' ? '/' : `/${item.name}`;
-                                const isActive = pathname === itemPath;
+                                const itemPath = getTabPath(item.name);
+                                const isActive = isActiveTab(item.name);
 
                                 return (
                                     <TouchableOpacity
                                         key={item.name}
-                                        onPress={() => router.push(itemPath as any)}
+                                        onPress={() => {
+                                            if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                                                setCurrentPathname(new URL(itemPath, window.location.origin).pathname);
+                                            }
+
+                                            router.push(itemPath as any);
+                                        }}
                                         style={[styles.pill, isActive && styles.pillActive]}
                                     >
                                         <Ionicons

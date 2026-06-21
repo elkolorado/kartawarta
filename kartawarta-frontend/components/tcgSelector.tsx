@@ -1,25 +1,25 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Dimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCardContext } from '@/context/CardContext';
 import { colors } from '@/constants/themeColors';
-
-const AVAILABLE_TCGS = [
-  { id: 1,name: 'DragonBallSuper', label: 'Fusion World', color: '#3b82f6' },
-  { id: 5,name: 'riftbound', label: 'Riftbound', color: '#7c3aed' },
-  // { id: 3,name: 'one piece', label: 'One Piece', color: '#10b981' },
-  // { id: 1006, name: 'pokemon', label: 'Pokemon', color: '#ef4444' },
-  // { id: 4, name: "magic: the gathering", label: 'Magic', color: '#f59e0b' },
-  // { id: 1007, name: 'digimon', label: 'Digimon', color: '#ec4899' },
-];
+import { usePathname, useRouter } from 'expo-router';
+import { AVAILABLE_TCGS, getTcgByName, getTcgPath } from '@/constants/tcgs';
 
 const TCGSelector = () => {
   const { tcgName, setTcgName, tcgId, setTcgId } = useCardContext();
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<View>(null);
 
-  const activeTcg = AVAILABLE_TCGS.find(t => t.id === tcgId) || AVAILABLE_TCGS[0];
+  const activeTcg = AVAILABLE_TCGS.find(t => t.id === tcgId) || getTcgByName(tcgName);
+
+  const getCurrentTabName = () => {
+    const lastSegment = pathname.split('/').filter(Boolean).pop();
+    return lastSegment === 'cards' || lastSegment === 'collection' ? lastSegment : 'index';
+  };
 
   const openDropdown = () => {
     // Measure where the button is on the screen to place the modal correctly
@@ -59,6 +59,7 @@ const TCGSelector = () => {
                   setTcgId(tcg.id);
                   setTcgName(tcg.name);
                   setIsOpen(false);
+                  router.replace(getTcgPath(tcg.name, getCurrentTabName()) as any);
                 }}
               >
                 <Text style={[styles.optionText, tcg.id === tcgId && { color: tcg.color }]}>

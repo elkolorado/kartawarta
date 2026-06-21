@@ -22,6 +22,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const AUTH_STATE_KEY = 'kartawarta_auth_state_v2';
 const LEGACY_TOKEN_KEY = 'kartawarta_token_v1';
+const PENDING_AUTH_PATH_KEY = 'kartawarta_pending_auth_path_v1';
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 
 function decodeBase64Url(value: string) {
@@ -258,6 +259,46 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const logout = () => {
     void clearSession();
   };
+
+  const setPendingAuthPath = (path: string) => {
+    if (Platform.OS !== 'web' || !path || path === '/login') return;
+
+    try {
+      sessionStorage.setItem(PENDING_AUTH_PATH_KEY, path);
+    } catch (error) {
+      console.warn('Failed to save pending auth path', error);
+    }
+  };
+
+  const takePendingAuthPath = () => {
+    if (Platform.OS !== 'web') return null;
+
+    try {
+      const pendingPath = sessionStorage.getItem(PENDING_AUTH_PATH_KEY);
+      sessionStorage.removeItem(PENDING_AUTH_PATH_KEY);
+      return pendingPath && pendingPath !== '/login' ? pendingPath : null;
+    } catch (error) {
+      console.warn('Failed to read pending auth path', error);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    if (!session && !isLoading && window.location.pathname !== '/login') {
+      setPendingAuthPath(window.location.pathname + window.location.search + window.location.hash);
+      return;
+    }
+
+    if (session && window.location.pathname === '/login') {
+      const pendingPath = takePendingAuthPath();
+      if (pendingPath) {
+        window.history.replaceState(window.history.state, '', pendingPath);
+        window.dispatchEvent(new Event('popstate'));
+      }
+    }
+  }, [session, isLoading]);
 
   const fetchWithAuth = async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const headers = new Headers(init.headers ?? {});

@@ -61,6 +61,9 @@ export default function RootLayout() {
               tabBarStyle: { display: 'none' }
             }}
           />
+          <Tabs.Screen name="[tcgName]/index" options={{ href: null, title: "Scan" }} />
+          <Tabs.Screen name="[tcgName]/collection" options={{ href: null, title: "Collection" }} />
+          <Tabs.Screen name="[tcgName]/cards" options={{ href: null, title: "Cards" }} />
         </Tabs>
       </CardProvider>
     </SessionProvider>

@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, StyleSheet, Linking } from 'react-native';
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Shared Components & Hooks
@@ -16,6 +16,7 @@ import { useSession } from '@/hooks/useAuth';
 import { colors } from '@/constants/themeColors';
 import { CollectionStats } from '@/components/collectionStats';
 import { WindowGrid } from '@/components/windowGrid';
+import { getTcgByName, normalizeTcgName } from '@/constants/tcgs';
 
 const SORT_OPTIONS = {
   price: 'Price',
@@ -32,8 +33,16 @@ const FILTER_OPTIONS = [
 
 const Collection: React.FC = () => {
   const { session, isLoading } = useSession();
-  const { cardCollectionData, allCards } = useCardContext();
+  const { cardCollectionData, allCards, setTcgName, setTcgId } = useCardContext();
+  const { tcgName: routeTcgName } = useLocalSearchParams<{ tcgName?: string }>();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const normalizedTcgName = normalizeTcgName(routeTcgName);
+    const tcg = getTcgByName(normalizedTcgName);
+    setTcgName(tcg.name);
+    setTcgId(tcg.id);
+  }, [routeTcgName, setTcgId, setTcgName]);
 
   // State
   const [searchQuery, setSearchQuery] = useState('');

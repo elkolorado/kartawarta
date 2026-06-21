@@ -3,6 +3,7 @@ import { useSession } from '../hooks/useAuth';
 import { CARDS_API_ENDPOINT } from '@/constants/apiConfig';
 import { CardMarketCard } from '@/components/foundCardDetails';
 import { fetchCardsWithPrices } from '@/actions/cardsApi';
+import { DEFAULT_TCG_NAME } from '@/constants/tcgs';
 
 // Combined type: CardMarketCard fields plus minimal user-collection fields returned by backend
 export type CollectionItem = CardMarketCard & {
@@ -47,7 +48,7 @@ const buildCollectionUrl = (tcg_id?: number) => {
 export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [cardData, setCardData] = useState<CollectionItem[]>([]);
     const [allCards, setAllCards] = useState<CollectionItem[]>([]);
-    const [tcgName, setTcgName] = useState<string>('DragonBallSuper');
+    const [tcgName, setTcgName] = useState<string>(DEFAULT_TCG_NAME);
     const [tcgId, setTcgId] = useState<number | null>(null);
     const { session, fetchWithAuth } = useSession();
 
@@ -100,7 +101,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const json = await response.json();
             // backend returns { success: True, user_collection_id: uc_id }
             const ucId = json?.user_collection_id ?? null;
-            await fetchCollection();
+            await fetchCollection(tcgId ?? undefined);
             return ucId;
         } catch (error) {
             console.error('Error adding card:', error);
@@ -126,7 +127,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     body: JSON.stringify(body),
                 });
                 if (!response.ok) throw new Error('Failed to add card quantity');
-                await fetchCollection();
+                await fetchCollection(tcgId ?? undefined);
             } else {
                 const body: any = { quantity: Math.abs(delta), quantity_foil: 0, card_market_id: cardMarketId };
                 const response = await fetchWithAuth(`${CARDS_API_ENDPOINT}/collection/removeCard`, {
@@ -137,7 +138,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     body: JSON.stringify(body),
                 });
                 if (!response.ok) throw new Error('Failed to remove card quantity');
-                await fetchCollection();
+                await fetchCollection(tcgId ?? undefined);
             }
         } catch (error) {
             console.error('Error updating card quantity:', error);
@@ -159,7 +160,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!response.ok) {
                 throw new Error('Failed to remove card');
             }
-            await fetchCollection();
+            await fetchCollection(tcgId ?? undefined);
         } catch (error) {
             console.error('Error removing card:', error);
         }
@@ -170,7 +171,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
             fetchCollection(tcgId ?? undefined);
             fetchAllCardsForTcg();
         }
-    }, [session, tcgId]);
+    }, [session, tcgId, tcgName]);
 
     return (
         <CardContext.Provider value={{ cardCollectionData: cardData, addCard, updateCardQuantity, fetchCollection, removeCard, tcgName, setTcgName, allCards, fetchAllCardsForTcg, tcgId, setTcgId }}>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import CardItem from '@/components/CardItem';
 import { Linking } from 'react-native';
@@ -6,11 +6,12 @@ import { colors } from '@/constants/themeColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCardContext } from '../context/CardContext';
 import FilterHeader from '@/components/filterHeader';
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useSession } from '@/hooks/useAuth';
 import { useCardFilters } from '@/hooks/useCardFilters';
 import { WindowGrid } from '@/components/windowGrid';
 import { getExpansionOptions, getRarityOptions } from '@/utils/cardUtils';
+import { getTcgByName, normalizeTcgName } from '@/constants/tcgs';
 
 
 
@@ -18,8 +19,16 @@ import { getExpansionOptions, getRarityOptions } from '@/utils/cardUtils';
 
 const CardsView: React.FC = () => {
   const { session, isLoading } = useSession();
-  const { allCards } = useCardContext(); // Using centralized data
+  const { allCards, setTcgName, setTcgId } = useCardContext(); // Using centralized data
+  const { tcgName: routeTcgName } = useLocalSearchParams<{ tcgName?: string }>();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const normalizedTcgName = normalizeTcgName(routeTcgName);
+    const tcg = getTcgByName(normalizedTcgName);
+    setTcgName(tcg.name);
+    setTcgId(tcg.id);
+  }, [routeTcgName, setTcgId, setTcgName]);
 
   // Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');

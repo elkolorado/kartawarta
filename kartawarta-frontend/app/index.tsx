@@ -1,17 +1,21 @@
 import { useCameraPermissions } from 'expo-camera';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Text, View, Platform, useWindowDimensions } from 'react-native';
 import style from '@/components/style';
 import CameraWebView from '@/components/cameraWebView';
 import CameraViewMobile from '@/components/cameraViewMobile';
 import { useSession } from '@/hooks/useAuth';
-import { Redirect } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import ScannedCards from '@/components/scannedCards';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCardContext } from '@/context/CardContext';
+import { getTcgByName, normalizeTcgName } from '@/constants/tcgs';
 
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
+  const { tcgName: routeTcgName } = useLocalSearchParams<{ tcgName?: string }>();
+  const { setTcgName, setTcgId } = useCardContext();
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [results, setResults] = useState<Array<{ cardName: string; cardInfo: any; photoUri: string; result: string, id: string }>>([]);
@@ -25,6 +29,13 @@ export default function App() {
 
   // get the native bottom padding
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const normalizedTcgName = normalizeTcgName(routeTcgName);
+    const tcg = getTcgByName(normalizedTcgName);
+    setTcgName(tcg.name);
+    setTcgId(tcg.id);
+  }, [routeTcgName, setTcgId, setTcgName]);
 
   if (isLoading) {
     return <View />;
