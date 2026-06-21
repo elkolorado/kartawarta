@@ -8,6 +8,7 @@ import style from './style';
 import { FontAwesome6 } from '@expo/vector-icons';
 import SwipeableRow from './swipeableCardDetails';
 import { useSession } from '@/hooks/useAuth';
+import { useCardContext } from '@/context/CardContext';
 type Props = {
     results: any[];
     style?: object;
@@ -22,6 +23,7 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, clearResu
 
     const swipeRef = useRef<any>(null);
     const { bulkUpdateCollection } = useSession();
+    const { fetchCollection, tcgId } = useCardContext();
     const [isBulkWorking, setIsBulkWorking] = useState(false);
     const [hasSavedBatch, setHasSavedBatch] = useState(false);
 
@@ -70,6 +72,7 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, clearResu
         try {
             const success = await bulkUpdateCollection(action, bulkItems);
             if (success) {
+                await fetchCollection(tcgId ?? undefined);
                 setHasSavedBatch(action === 'add');
             }
         } finally {
