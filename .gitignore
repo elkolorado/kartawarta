@@ -4,4 +4,6 @@ indexes
 temp_descriptors.binkartawarta.tar.gz
 kartawarta.tar.gz
 .env*
+tmp/
+*.bacpac
 assets.tar.gz

@@ -436,13 +436,13 @@ On your local machine, after local ingestion succeeds:
 ```bash
 DB_PASSWORD='LOCAL_SQL_PASSWORD' \
 REMOTE_DB_PASSWORD='VPS_SQL_PASSWORD' \
-scripts/sync_catalog_tables.sh all
+bash scripts/sync_catalog_tables.sh all
 ```
 
 If both SQL Server containers use the same password, `REMOTE_DB_PASSWORD` can be omitted:
 
 ```bash
-DB_PASSWORD='SQL_PASSWORD' scripts/sync_catalog_tables.sh all
+DB_PASSWORD='SQL_PASSWORD' bash scripts/sync_catalog_tables.sh all
 ```
 
 Useful overrides:
@@ -455,7 +455,7 @@ REMOTE_CONTAINER=kartawarta-sqlserver \
 DB_NAME=cardmarket \
 DB_PASSWORD='LOCAL_SQL_PASSWORD' \
 REMOTE_DB_PASSWORD='VPS_SQL_PASSWORD' \
-scripts/sync_catalog_tables.sh all
+bash scripts/sync_catalog_tables.sh all
 ```
 
 The script creates a temporary export database locally, exports a `catalog_tables.bacpac`, copies it with `scp`, imports it into a temporary VPS database, then merges rows into production by stable keys (`TCG.id`, `Expansion.id`, `Card.cardMarketId`).

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Git Bash/MSYS on Windows rewrites Linux-style container paths such as
+# /opt/mssql-tools18/bin/sqlcmd into Windows paths unless disabled.
+export MSYS_NO_PATHCONV="${MSYS_NO_PATHCONV:-1}"
+export MSYS2_ARG_CONV_EXCL="${MSYS2_ARG_CONV_EXCL:-*}"
+
 LOCAL_CONTAINER="${LOCAL_CONTAINER:-kartawarta-sqlserver}"
 REMOTE_HOST="${REMOTE_HOST:-kartawarta}"
 REMOTE_PATH="${REMOTE_PATH:-/opt/kartawarta}"
@@ -53,8 +58,8 @@ sqlcmd_in_container() {
 }
 
 ensure_local_tools() {
-  docker exec "$LOCAL_CONTAINER" test -x /opt/mssql-tools18/bin/sqlcmd
-  docker exec "$LOCAL_CONTAINER" test -x /opt/mssql-tools18/bin/sqlpackage || {
+  docker exec "$LOCAL_CONTAINER" bash -lc 'test -x /opt/mssql-tools18/bin/sqlcmd'
+  docker exec "$LOCAL_CONTAINER" bash -lc 'test -x /opt/mssql-tools18/bin/sqlpackage' || {
     echo "Installing sqlpackage in local container..."
     docker exec -u 0 "$LOCAL_CONTAINER" bash -lc '
       set -euo pipefail
@@ -71,8 +76,8 @@ ensure_local_tools() {
 }
 
 ensure_remote_tools() {
-  ssh "$REMOTE_HOST" "docker exec '$REMOTE_CONTAINER' test -x /opt/mssql-tools18/bin/sqlcmd"
-  ssh "$REMOTE_HOST" "docker exec '$REMOTE_CONTAINER' test -x /opt/mssql-tools18/bin/sqlpackage" || {
+  ssh "$REMOTE_HOST" "docker exec '$REMOTE_CONTAINER' bash -lc 'test -x /opt/mssql-tools18/bin/sqlcmd'"
+  ssh "$REMOTE_HOST" "docker exec '$REMOTE_CONTAINER' bash -lc 'test -x /opt/mssql-tools18/bin/sqlpackage'" || {
     echo "Installing sqlpackage in VPS container..."
     ssh "$REMOTE_HOST" "docker exec -u 0 '$REMOTE_CONTAINER' bash -lc '
       set -euo pipefail
@@ -183,6 +188,8 @@ SET XACT_ABORT ON;
 
 BEGIN TRANSACTION;
 
+SET IDENTITY_INSERT [$(TargetDb)].dbo.TCG ON;
+
 MERGE [$(TargetDb)].dbo.TCG AS target
 USING catalog_import.dbo.TCG AS source
 ON target.id = source.id
@@ -192,6 +199,10 @@ WHEN MATCHED THEN UPDATE SET
 WHEN NOT MATCHED BY TARGET THEN
   INSERT (id, name, cardMarketName)
   VALUES (source.id, source.name, source.cardMarketName);
+
+SET IDENTITY_INSERT [$(TargetDb)].dbo.TCG OFF;
+
+SET IDENTITY_INSERT [$(TargetDb)].dbo.Expansion ON;
 
 MERGE [$(TargetDb)].dbo.Expansion AS target
 USING catalog_import.dbo.Expansion AS source
@@ -206,6 +217,10 @@ WHEN MATCHED THEN UPDATE SET
 WHEN NOT MATCHED BY TARGET THEN
   INSERT (id, tcg_id, name, code, cardMarketExpansionId, cardMarketExpansionCode, release_date)
   VALUES (source.id, source.tcg_id, source.name, source.code, source.cardMarketExpansionId, source.cardMarketExpansionCode, source.release_date);
+
+SET IDENTITY_INSERT [$(TargetDb)].dbo.Expansion OFF;
+
+SET IDENTITY_INSERT [$(TargetDb)].dbo.Card ON;
 
 MERGE [$(TargetDb)].dbo.Card AS target
 USING catalog_import.dbo.Card AS source
@@ -222,6 +237,8 @@ WHEN MATCHED THEN UPDATE SET
 WHEN NOT MATCHED BY TARGET THEN
   INSERT (id, expansion_id, tcg_id, cardMarketId, name, number, rarity, image_url, card_url, last_updated)
   VALUES (source.id, source.expansion_id, source.tcg_id, source.cardMarketId, source.name, source.number, source.rarity, source.image_url, source.card_url, source.last_updated);
+
+SET IDENTITY_INSERT [$(TargetDb)].dbo.Card OFF;
 
 COMMIT TRANSACTION;
 
