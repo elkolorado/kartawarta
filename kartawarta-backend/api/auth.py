@@ -10,21 +10,26 @@ from db import get_connection
 
 router = APIRouter()
 
-CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID") or os.getenv("GOOGLE_WEB_CLIENT_ID")
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 def verify_google_token(token: str):
+    if not CLIENT_ID:
+        print("Google token verification failed: GOOGLE_CLIENT_ID is not configured")
+        return None
+
     try:
         # Verify the token against Google's public keys
-        idinfo = id_token.verify_oauth2_token(token, requests.Request(), CLIENT_ID)
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), CLIENT_ID, clock_skew_in_seconds=10)
         
         # ID token is valid. Get the user's Google ID and email
         return idinfo
-    except ValueError:
+    except ValueError as exc:
         # Invalid token
+        print(f"Google token verification failed: {exc}")
         return None
 
 

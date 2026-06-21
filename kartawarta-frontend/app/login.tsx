@@ -12,6 +12,7 @@ import { Redirect } from 'expo-router';
 import Badge from '@/components/badge';
 import { Platform } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
+import { ResponseType } from 'expo-auth-session';
 
 // This ensures the browser closes after login
 WebBrowser.maybeCompleteAuthSession();
@@ -24,15 +25,17 @@ const webRedirectUri = env.EXPO_PUBLIC_GOOGLE_WEB_REDIRECT_URI || env.VITE_GOOGL
 
 export default function LoginScreen() {
   const { loginWithGoogle, session } = useSession();
+  const redirectUri = Platform.OS === 'web' ? webRedirectUri : undefined;
   
   // Replace these IDs with your actual IDs from Google Cloud Console
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: webClientId,
+    webClientId,
     iosClientId,
     androidClientId,
-    // redirectUri: Platform.OS === 'web' ? webRedirectUri : undefined,
+    redirectUri,
     // Request an ID token (JWT) so backend can verify via Google ID token verification
-    responseType: 'id_token',
+    responseType: ResponseType.IdToken,
     scopes: ['openid', 'email', 'profile'],
   }, {
     native: 'com.elkolorado.fusionworldscanner://'
@@ -41,15 +44,13 @@ export default function LoginScreen() {
   // Listen for the Google response
   useEffect(() => {
     if (response?.type === 'success') {
-      // Try to extract an ID token (JWT). Depending on platform the token
-      // can appear as `response.params.id_token` or `response.authentication.idToken`.
-      // Fallback to accessToken only if an ID token is not available.
-      const idToken = (response as any).params?.id_token || response.authentication?.idToken || response.authentication?.accessToken;
+      // The backend verifies only Google ID tokens. Do not send access tokens.
+      const idToken = (response as any).params?.id_token || response.authentication?.idToken;
       console.log('Google Authentication Response:', response, 'extracted idToken?', !!idToken);
       if (idToken) {
         handleGoogleLogin(idToken);
       } else {
-        console.error('No token found in Google response');
+        console.error('No Google ID token found in Google response');
       }
     }
   }, [response]);
