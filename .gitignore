@@ -1,4 +1,7 @@
 card_images
 venv
 indexes
-temp_descriptors.bin
+temp_descriptors.binkartawarta.tar.gz
+kartawarta.tar.gz
+.env*
+assets.tar.gz

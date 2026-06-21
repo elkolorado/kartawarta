@@ -1,0 +1,51 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start All Services",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Docker Start",
+        "Run Backend",
+        "Run Vision",
+        "Run Frontend"
+      ],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Docker Start",
+      "type": "shell",
+      "command": "docker start sqlserver"
+    },
+    // after docker start, perform ingestion
+    {
+      "label": "Data Ingestion - Riftbound",
+      "type": "shell",
+      "command": "./venv/Scripts/python kartawarta-backend/dataingestion.py -s riftbound",
+      "dependsOn": "Docker Start",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Data Ingestion - DBS",
+      "type": "shell",
+      "command": "./venv/Scripts/python kartawarta-backend/dataingestion.py -s dbs",
+      "dependsOn": "Docker Start",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Run Backend",
+      "type": "shell",
+      "command": "./venv/Scripts/python kartawarta-backend/initialize.py"
+    },
+    {
+      "label": "Run Vision",
+      "type": "shell",
+      "command": "./venv/Scripts/python kartawarta-vision-backend/initialize.py"
+    },
+    {
+      "label": "Run Frontend",
+      "type": "shell",
+      "command": "npm --prefix kartawarta-frontend start"
+    }
+  ]
+}

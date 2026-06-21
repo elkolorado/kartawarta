@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "backgroundColor": "#0a0f14",
+    "userInterfaceStyle": "dark",
+    "name": "wsei-lab-mobile",
+    "slug": "wsei-lab-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "com.elkolorado.fusionworldscanner",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.elkolorado.fusionworldscanner",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0a1f2e"
+      },
+      "package": "com.elkolorado.fusionworldscanner"
+    },
+    "androidStatusBar": {
+      "barStyle": "light",
+      "backgroundColor": "#000000"
+    },
+    "androidNavigationBar": {
+      "visible": "always",
+      "barStyle": "light",
+      "backgroundColor": "#000000"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "1dd5bc0f-dfc7-4997-83b6-78f5d8503dc6"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+numpy
+python-multipart
+httpx
+opencv-python-headless
+faiss-cpu
+Pillow
+PyYAML
+tqdm
+pydantic
+prometheus-client

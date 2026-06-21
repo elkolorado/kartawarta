@@ -1,0 +1,11 @@
+bs4
+cloudscraper
+requests
+pymssql
+bcrypt
+dotenv
+uvicorn
+fastapi
+pyjwt
+google-auth
+prometheus-client

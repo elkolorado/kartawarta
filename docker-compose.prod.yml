@@ -1,0 +1,19 @@
+services:
+  sqlserver:
+    ports: !reset []
+
+  backend:
+    ports: !reset []
+
+  vision:
+    ports: !reset []
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:8081:80"
+
+  ingest-dbs:
+    ports: !reset []
+
+  ingest-riftbound:
+    ports: !reset []

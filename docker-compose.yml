@@ -1,0 +1,132 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: kartawarta-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD:-YourStrongPassword123!}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserverdata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/1433' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  db-setup:
+    build: ./kartawarta-backend
+    command: python db/prepare_db.py
+    environment: &backend-env
+      DB_SERVER: sqlserver
+      DB_PORT: 1433
+      DB_USER: ${DB_USER:-sa}
+      DB_PASSWORD: ${DB_PASSWORD:-YourStrongPassword123!}
+      DB_DATABASE: ${DB_DATABASE:-cardmarket}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      GOOGLE_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-413150772909-62etgu7foj922uqaioic0h7p9fv4jeri.apps.googleusercontent.com}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build: ./kartawarta-backend
+    container_name: kartawarta-backend
+    environment: *backend-env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./card_images:/app/card_images
+      - ./indexes:/app/indexes
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  ingest-dbs:
+    build: ./kartawarta-backend
+    command: python dataingestion.py -s dbs
+    environment: *backend-env
+    volumes:
+      - ./card_images:/app/card_images
+      - ./indexes:/app/indexes
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    profiles:
+      - ingestion
+    restart: "no"
+
+  ingest-riftbound:
+    build: ./kartawarta-backend
+    command: python dataingestion.py -s riftbound
+    environment: *backend-env
+    volumes:
+      - ./card_images:/app/card_images
+      - ./indexes:/app/indexes
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    profiles:
+      - ingestion
+    restart: "no"
+
+  vision:
+    build: ./kartawarta-vision-backend
+    container_name: kartawarta-vision
+    environment:
+      APP_ENV: ${APP_ENV:-docker}
+      CARD_IMAGES_PATH: /app/card_images
+      DETAILS_SERVICE_URL: http://backend:8000
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      OMP_NUM_THREADS: 1
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./card_images:/app/card_images
+      - ./indexes:/app/indexes
+      - ./kartawarta-vision-backend/config.yaml:/app/config.yaml:ro
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./kartawarta-frontend
+      args:
+        VITE_API_ENDPOINT: /api/vision
+        VITE_CARDS_API_ENDPOINT: /api/backend
+        EXPO_PUBLIC_API_ENDPOINT: /api/vision
+        EXPO_PUBLIC_CARDS_API_ENDPOINT: /api/backend
+        VITE_GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-413150772909-62etgu7foj922uqaioic0h7p9fv4jeri.apps.googleusercontent.com}
+        VITE_GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-413150772909-v2nfgsco92b4bglvke2k694r5838nh2d.apps.googleusercontent.com}
+        VITE_GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-413150772909-9ot15s0u2ii4vp9mnihl0mhkq6a1hdq7.apps.googleusercontent.com}
+        VITE_GOOGLE_WEB_REDIRECT_URI: ${GOOGLE_WEB_REDIRECT_URI:-http://localhost:8081/login}
+        EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-413150772909-62etgu7foj922uqaioic0h7p9fv4jeri.apps.googleusercontent.com}
+        EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: ${GOOGLE_IOS_CLIENT_ID:-413150772909-v2nfgsco92b4bglvke2k694r5838nh2d.apps.googleusercontent.com}
+        EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: ${GOOGLE_ANDROID_CLIENT_ID:-413150772909-9ot15s0u2ii4vp9mnihl0mhkq6a1hdq7.apps.googleusercontent.com}
+        EXPO_PUBLIC_GOOGLE_WEB_REDIRECT_URI: ${GOOGLE_WEB_REDIRECT_URI:-http://localhost:8081/login}
+    container_name: kartawarta-frontend
+    ports:
+      - "8081:80"
+    depends_on:
+      backend:
+        condition: service_started
+      vision:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  sqlserverdata:
+
+  

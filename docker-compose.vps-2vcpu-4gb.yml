@@ -1,0 +1,72 @@
+# Local VPS simulation profile for a 2 vCore / 4 GB RAM machine.
+# Use together with docker-compose.yml and docker-compose.monitoring.yml.
+#
+# This intentionally leaves some RAM/CPU for Debian, Docker Engine, SSH, logs, and kernel cache.
+# The app containers are capped below the physical VPS size so local tests fail before the real VPS would swap.
+
+services:
+  sqlserver:
+    mem_limit: 1200m
+    memswap_limit: 1200m
+    cpus: 0.55
+    environment:
+      MSSQL_MEMORY_LIMIT_MB: 900
+
+  backend:
+    mem_limit: 400m
+    memswap_limit: 400m
+    cpus: 0.35
+    command: sh -c "uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers $${UVICORN_WORKERS:-1}"
+    environment:
+      UVICORN_WORKERS: 1
+
+  vision:
+    mem_limit: 1400m
+    memswap_limit: 1400m
+    cpus: 0.65
+    environment:
+      UVICORN_WORKERS: 1
+      VISION_MATCH_CONCURRENCY: 2
+      OPENBLAS_NUM_THREADS: 1
+      MKL_NUM_THREADS: 1
+      OMP_NUM_THREADS: 1
+
+  frontend:
+    mem_limit: 96m
+    memswap_limit: 96m
+    cpus: 0.10
+
+  docker-stats-exporter:
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.05
+
+  cadvisor:
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.08
+
+  prometheus:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.12
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=24h
+      - --web.enable-lifecycle
+
+  grafana:
+    mem_limit: 192m
+    memswap_limit: 192m
+    cpus: 0.10
+
+  ingest-dbs:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.50
+
+  ingest-riftbound:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.50
