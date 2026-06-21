@@ -36,6 +36,14 @@ const CardContext = createContext<CardContextProps | undefined>(undefined);
 
 export default CardContext;
 
+const buildCollectionUrl = (tcg_id?: number) => {
+    const params = new URLSearchParams();
+    if (tcg_id) params.set('tcg_id', String(tcg_id));
+
+    const query = params.toString();
+    return `${CARDS_API_ENDPOINT}/collection/${query ? `?${query}` : ''}`;
+};
+
 export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [cardData, setCardData] = useState<CollectionItem[]>([]);
     const [allCards, setAllCards] = useState<CollectionItem[]>([]);
@@ -46,9 +54,7 @@ export const CardProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Fetch the collection from the backend
     const fetchCollection = async (tcg_id?: number) => {
         try {
-            const url = new URL(`${CARDS_API_ENDPOINT}/collection/`);
-            if (tcg_id) url.searchParams.set('tcg_id', String(tcg_id));
-            const response = await fetchWithAuth(url.toString());
+            const response = await fetchWithAuth(buildCollectionUrl(tcg_id));
             if (!response.ok) {
                 throw new Error('Failed to fetch collection');
             }
