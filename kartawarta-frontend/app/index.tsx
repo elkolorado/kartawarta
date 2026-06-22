@@ -59,6 +59,18 @@ export default function App() {
     setResults((prevResults) => prevResults.filter((_, i) => i !== index));
   }
 
+  const updateResultCard = (index: number, cardInfo: any) => {
+    setResults((prevResults) => prevResults.map((result, i) => (
+      i === index
+        ? {
+            ...result,
+            cardName: cardInfo?.cardMarketId || cardInfo?.name || result.cardName,
+            cardInfo,
+          }
+        : result
+    )));
+  };
+
   if (!session) {
     return <Redirect href="/login" />;
   }
@@ -151,6 +163,7 @@ export default function App() {
           <ScannedCards 
             results={results} 
             removeResult={removeResult} 
+            updateResultCard={updateResultCard}
             clearResults={() => setResults([])}
             style={[
               isLargeWeb ? styles.column : {

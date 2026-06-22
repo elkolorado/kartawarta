@@ -1,7 +1,13 @@
-import { FlatList, useWindowDimensions, View } from "react-native";
+import { FlatList, StyleProp, useWindowDimensions, View, ViewStyle } from "react-native";
 
 // Responsive grid helper using window width to determine number of columns
-export const WindowGrid: React.FC<{ data: any[]; renderCard: (item: any) => React.ReactNode }> = ({ data, renderCard }) => {
+export const WindowGrid: React.FC<{
+  data: any[];
+  renderCard: (item: any) => React.ReactNode;
+  columns?: number;
+  contentContainerStyle?: StyleProp<ViewStyle>;
+  itemStyle?: StyleProp<ViewStyle>;
+}> = ({ data, renderCard, columns, contentContainerStyle, itemStyle }) => {
   const { width } = useWindowDimensions();
 
   const getColumnsForWidth = (w: number) => {
@@ -14,7 +20,7 @@ export const WindowGrid: React.FC<{ data: any[]; renderCard: (item: any) => Reac
     return 2;
   };
 
-  const numColumns = Math.max(1, getColumnsForWidth(width));
+  const numColumns = Math.max(1, columns ?? getColumnsForWidth(width));
 
   return (
     <FlatList
@@ -24,11 +30,11 @@ export const WindowGrid: React.FC<{ data: any[]; renderCard: (item: any) => Reac
       keyExtractor={(item, idx) => String(item.user_collection_id ?? item.cardMarketId ?? item.card_id ?? idx)}
       numColumns={numColumns}
       renderItem={({ item }) => (
-        <View style={{ width: `${100 / numColumns}%`, padding: 4 }}>
+        <View style={[{ width: `${100 / numColumns}%`, padding: 4 }, itemStyle]}>
           {renderCard(item)}
         </View>
       )}
-      contentContainerStyle={{ padding: 8 }}
+      contentContainerStyle={[{ padding: 8 }, contentContainerStyle]}
     />
   );
 };

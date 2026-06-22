@@ -13,13 +13,14 @@ type Props = {
     results: any[];
     style?: object;
     removeResult?: (index: number) => void;
+    updateResultCard?: (index: number, cardInfo: any) => void;
     clearResults?: () => void;
 }
 
 const styles = style();
 
 
-const ScannedCards: React.FC<Props> = ({ results, style, removeResult, clearResults }) => {
+const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateResultCard, clearResults }) => {
 
     const swipeRef = useRef<any>(null);
     const { bulkUpdateCollection } = useSession();
@@ -36,7 +37,12 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, clearResu
 
     const totalTrend = useMemo(() => {
         return results.reduce((total, card) => {
-            const price = parseFloat(card.cardInfo?.price_trend ? card.cardInfo.price_trend : (!card.cardInfo?.avg && !card.cardInfo?.avg_1d) ? card.cardInfo?.trend_foil : null || '0');
+            const rawPrice = card.cardInfo?.price_trend
+                ? card.cardInfo.price_trend
+                : (!card.cardInfo?.avg && !card.cardInfo?.avg_1d)
+                    ? card.cardInfo?.trend_foil
+                    : '0';
+            const price = parseFloat(String(rawPrice ?? '0'));
             return total + (isNaN(price) ? 0 : price);
         }, 0).toFixed(2);
     }, [results]);
@@ -204,6 +210,7 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, clearResu
                                     item={item}
                                     index={index}
                                     removeResult={removeResult}
+                                    updateResultCard={updateResultCard}
                                     renderLeftActions={renderLeftActions}
                                     renderRightActions={renderRightActions}
                                 />

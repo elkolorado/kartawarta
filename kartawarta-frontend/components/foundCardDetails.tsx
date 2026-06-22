@@ -1,11 +1,11 @@
 import { useCardContext } from '@/context/CardContext';
 import { API_ENDPOINT } from '../constants/apiConfig';
-import React, { useState, JSX } from 'react';
-import { View, Text, Image, StyleSheet, Button } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Linking } from 'react-native';
 import { colors } from '@/constants/themeColors';
 import { FontAwesome6 } from '@expo/vector-icons';
-import PrimaryButton from './primaryButton';
+import FoundCardEditModal from './foundCardEditModal';
 
 export type CardMarketCard = {
     id: number;
@@ -48,12 +48,40 @@ interface FoundCardDetailsProps {
     cardInfo?: CardMarketCard;
     photoUri?: string;
     result?: string;
+    onReplaceCard?: (cardInfo: CardMarketCard) => void;
 }
 
-const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo, photoUri, result }) => {
-    const { addCard, removeCard } = useCardContext();
+type CompactActionButtonProps = {
+    label: string;
+    icon: React.ComponentProps<typeof FontAwesome6>['name'];
+    onPress: () => void;
+    variant?: 'primary' | 'ghost';
+    disabled?: boolean;
+};
+
+const CompactActionButton: React.FC<CompactActionButtonProps> = ({ label, icon, onPress, variant = 'ghost', disabled = false }) => (
+    <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        activeOpacity={0.78}
+        disabled={disabled}
+        onPress={onPress}
+        style={[
+            styles.compactAction,
+            variant === 'primary' ? styles.compactActionPrimary : styles.compactActionGhost,
+            disabled && styles.compactActionDisabled,
+        ]}
+    >
+        <FontAwesome6 name={icon} size={13} color={variant === 'primary' ? colors.background : colors.gold} />
+    </TouchableOpacity>
+);
+
+const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo, photoUri, result, onReplaceCard }) => {
+    const { addCard, removeCard, allCards } = useCardContext();
     const [isCardAdded, setIsCardAdded] = useState(false);
     const [addedCardMarketId, setAddedCardMarketId] = useState<number | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editSearch, setEditSearch] = useState(cardInfo?.name || '');
 
     const handleAddCard = async () => {
         if (!cardInfo) return;
@@ -73,6 +101,28 @@ const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo,
 
     const price = cardInfo?.from_price
     const priceTrend = cardInfo?.price_trend ? cardInfo.price_trend : (!cardInfo?.avg && !cardInfo?.avg_1d) ? cardInfo?.trend_foil : null;
+    const matchingCards = allCards
+        .filter(card => {
+            const query = editSearch.trim().toLowerCase();
+            if (!query) return true;
+
+            return [card.name, card.number, card.rarity, card.printed_in]
+                .filter(Boolean)
+                .some(value => String(value).toLowerCase().includes(query));
+        })
+        .slice(0, 40);
+
+    const handleOpenEdit = () => {
+        setEditSearch(cardInfo?.name || '');
+        setIsEditing(true);
+    };
+
+    const handleReplaceCard = (replacement: CardMarketCard) => {
+        onReplaceCard?.(replacement);
+        setIsCardAdded(false);
+        setAddedCardMarketId(null);
+        setIsEditing(false);
+    };
 
     return (
         <View style={styles.container}>
@@ -123,17 +173,25 @@ const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo,
                     </View>
 
                     <View style={styles.actionWrapper}>
-                        {/* <Button title="💾 Save" onPress={handleAddCard} /> */}
-                        {/* we need fontawesome btn inside btn, but we cant use btn so use other thing */}
+                        <CompactActionButton label="Edit" icon="pen" onPress={handleOpenEdit} variant="ghost" />
 
-                        {!isCardAdded && (<PrimaryButton title="Save" onPress={handleAddCard} disabled={isCardAdded} icon={<FontAwesome6 name="save" size={14} />} />)}
+                        {!isCardAdded && (<CompactActionButton label="Save" variant="primary" icon="save" onPress={handleAddCard} disabled={isCardAdded} />)}
 
                         {isCardAdded && (
-                            <PrimaryButton title="Undo" onPress={handleRemoveCard} icon={<FontAwesome6 name="arrow-rotate-left" size={14} />} />
+                            <CompactActionButton label="Undo" icon="arrow-rotate-left" onPress={handleRemoveCard} />
                         )}
                     </View>
                 </View>
             </View>
+
+            <FoundCardEditModal
+                visible={isEditing}
+                search={editSearch}
+                cards={matchingCards}
+                onSearchChange={setEditSearch}
+                onClose={() => setIsEditing(false)}
+                onSelectCard={handleReplaceCard}
+            />
         </View>
     );
 };
@@ -200,12 +258,34 @@ const styles = StyleSheet.create({
         color: colors.foreground
     },
     actionWrapper: {
-        marginTop: 4,
+        marginTop: 6,
         flexDirection: 'row',
-        gap: 4,
+        alignItems: 'center',
+        gap: 6,
     },
-    undoButton: {
-        flex: 0.4,
+    compactAction: {
+        width: 34,
+        height: 32,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.16,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    compactActionPrimary: {
+        backgroundColor: colors.gold,
+        borderColor: colors.gold,
+    },
+    compactActionGhost: {
+        backgroundColor: 'rgba(212, 175, 55, 0.10)',
+        borderColor: 'rgba(212, 175, 55, 0.42)',
+    },
+    compactActionDisabled: {
+        opacity: 0.45,
     },
 });
 

@@ -3,7 +3,7 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 import FoundCardDetails from './foundCardDetails';
 import { useRef } from 'react';
 
-const SwipeableRow = ({ item, index, removeResult, renderLeftActions, renderRightActions }: any) => {
+const SwipeableRow = ({ item, index, removeResult, updateResultCard, renderLeftActions, renderRightActions }: any) => {
     const swipeableRef = useRef<any>(null);
 
     const handleRemove = () => {
@@ -38,7 +38,7 @@ const SwipeableRow = ({ item, index, removeResult, renderLeftActions, renderRigh
             renderLeftActions={renderLeftActions}
             onSwipeableOpen={handleSwipeOpen}
         >
-            <FoundCardDetails {...item} />
+            <FoundCardDetails {...item} onReplaceCard={(cardInfo: any) => updateResultCard?.(index, cardInfo)} />
         </ReanimatedSwipeable>
     );
 };
