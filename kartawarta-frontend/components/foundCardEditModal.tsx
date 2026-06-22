@@ -1,11 +1,12 @@
-import { API_ENDPOINT } from '@/constants/apiConfig';
 import { colors } from '@/constants/themeColors';
 import { FontAwesome6 } from '@expo/vector-icons';
-import React from 'react';
-import { Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Modal, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import CardItem from './CardItem';
+import FilterHeader from './filterHeader';
 import type { CardMarketCard } from './foundCardDetails';
 import { WindowGrid } from './windowGrid';
+import { getExpansionOptions, getRarityOptions } from '@/utils/cardUtils';
 
 type FoundCardEditModalProps = {
     visible: boolean;
@@ -16,7 +17,11 @@ type FoundCardEditModalProps = {
     onSelectCard: (card: CardMarketCard) => void;
 };
 
-const inputNoOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null;
+const SORT_OPTIONS = {
+    price: 'Price',
+    priceTrend: 'Trend',
+    name: 'Name',
+};
 
 const FoundCardEditModal: React.FC<FoundCardEditModalProps> = ({
     visible,
@@ -28,6 +33,52 @@ const FoundCardEditModal: React.FC<FoundCardEditModalProps> = ({
 }) => {
     const { width } = useWindowDimensions();
     const columns = width >= 700 ? 3 : 2;
+    const [selectedExpansion, setSelectedExpansion] = useState('All');
+    const [selectedRarity, setSelectedRarity] = useState('All');
+    const [sortBy, setSortBy] = useState<'price' | 'priceTrend' | 'name'>('price');
+    const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
+
+    const expansionOptions = useMemo(() => getExpansionOptions(cards as any[]), [cards]);
+    const rarityOptions = useMemo(() => getRarityOptions(cards as any[]), [cards]);
+    const filteredCards = useMemo(() => {
+        const query = search.trim().toLowerCase();
+        const dir = sortDir === 'asc' ? 1 : -1;
+
+        return cards
+            .filter(card => {
+                if (selectedExpansion !== 'All' && String(card.expansion_id) !== selectedExpansion) return false;
+                if (selectedRarity !== 'All' && String(card.rarity || '').toLowerCase() !== selectedRarity.toLowerCase()) return false;
+                if (!query) return true;
+
+                return [card.name, card.number, card.rarity, card.printed_in]
+                    .filter(Boolean)
+                    .some(value => String(value).toLowerCase().includes(query));
+            })
+            .sort((a, b) => {
+                switch (sortBy) {
+                    case 'price':
+                        return dir * (Number(a.from_price ?? 0) - Number(b.from_price ?? 0));
+                    case 'priceTrend': {
+                        const getTrend = (card: CardMarketCard) => Number(card.price_trend || ((!card.avg && !card.avg_1d) ? card.trend_foil : 0));
+                        return dir * (getTrend(a) - getTrend(b));
+                    }
+                    case 'name':
+                        return dir * String(a.name || '').localeCompare(String(b.name || ''));
+                    default:
+                        return 0;
+                }
+            })
+            .slice(0, 60);
+    }, [cards, search, selectedExpansion, selectedRarity, sortBy, sortDir]);
+
+    const handleSortPress = (id: string) => {
+        if (sortBy === id) {
+            setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortBy(id as typeof sortBy);
+            setSortDir('desc');
+        }
+    };
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -43,28 +94,30 @@ const FoundCardEditModal: React.FC<FoundCardEditModalProps> = ({
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.editSearchWrapper}>
-                        <FontAwesome6 name="magnifying-glass" size={14} color={colors.mutedForeground} style={styles.searchIcon} />
-                        <TextInput
-                            style={[styles.editSearchInput, inputNoOutline]}
-                            placeholder="Search card by name, number, rarity..."
-                            value={search}
-                            onChangeText={onSearchChange}
-                            placeholderTextColor={colors.mutedForeground}
-                            selectionColor={colors.gold}
-                            autoFocus={false}
+                    <View style={styles.filterHeaderWrapper}>
+                        <FilterHeader
+                            searchQuery={search}
+                            setSearchQuery={onSearchChange}
+                            currentSort={sortBy}
+                            sortDir={sortDir}
+                            sortOptions={SORT_OPTIONS}
+                            onSortPress={handleSortPress}
+                            filterMode={selectedExpansion}
+                            filterOptions={expansionOptions}
+                            onFilterPress={setSelectedExpansion}
+                            filterLabel="Expansions"
+                            secondaryFilterMode={selectedRarity}
+                            secondaryFilterOptions={rarityOptions}
+                            onSecondaryFilterPress={setSelectedRarity}
+                            secondaryFilterLabel="Rarities"
+                            statsText={`${filteredCards.length} matches`}
                         />
-                        {search.length > 0 && (
-                            <TouchableOpacity accessibilityLabel="Clear search" activeOpacity={0.75} style={styles.clearSearchButton} onPress={() => onSearchChange('')}>
-                                <FontAwesome6 name="xmark" size={12} color={colors.background} />
-                            </TouchableOpacity>
-                        )}
                     </View>
 
                     <View style={styles.resultsContainer}>
-                        {cards.length > 0 ? (
+                        {filteredCards.length > 0 ? (
                             <WindowGrid
-                                data={cards}
+                                data={filteredCards}
                                 columns={columns}
                                 contentContainerStyle={styles.resultsGrid}
                                 itemStyle={styles.gridItem}
@@ -140,37 +193,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    editSearchWrapper: {
-        height: 46,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(212, 175, 55, 0.26)',
-        backgroundColor: colors.card,
-        paddingLeft: 12,
-        paddingRight: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 14,
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    editSearchInput: {
-        flex: 1,
-        height: '100%',
-        color: colors.foreground,
-        fontSize: 14,
-        borderWidth: 0,
-        paddingVertical: 0,
-    },
-    clearSearchButton: {
-        width: 26,
-        height: 26,
-        borderRadius: 13,
-        backgroundColor: colors.gold,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 8,
+    filterHeaderWrapper: {
+        marginHorizontal: -16,
+        marginTop: -16,
     },
     resultsContainer: {
         flex: 1,

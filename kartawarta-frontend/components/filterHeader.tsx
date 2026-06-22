@@ -1,8 +1,10 @@
 // @/components/FilterHeader.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { FontAwesome6, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/constants/themeColors';
+
+const inputNoOutline = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null;
 
 export interface FilterOption {
   id: string;
@@ -136,12 +138,17 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
         <View style={styles.searchWrapper}>
           <FontAwesome6 name="magnifying-glass" size={14} color={colors.mutedForeground} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, inputNoOutline]}
             placeholder="Search cards..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={colors.mutedForeground}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity accessibilityLabel="Clear search" activeOpacity={0.75} style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
+              <FontAwesome6 name="xmark" size={12} color={colors.background} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.buttonGroup}>
@@ -272,7 +279,16 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, height: 44,
   },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, color: colors.foreground, fontSize: 14 },
+  searchInput: { flex: 1, color: colors.foreground, fontSize: 14, borderWidth: 0 },
+  clearSearchButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
   buttonGroup: { flexDirection: 'row', gap: 8 },
   actionButton: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)',

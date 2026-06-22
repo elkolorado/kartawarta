@@ -101,16 +101,6 @@ const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo,
 
     const price = cardInfo?.from_price
     const priceTrend = cardInfo?.price_trend ? cardInfo.price_trend : (!cardInfo?.avg && !cardInfo?.avg_1d) ? cardInfo?.trend_foil : null;
-    const matchingCards = allCards
-        .filter(card => {
-            const query = editSearch.trim().toLowerCase();
-            if (!query) return true;
-
-            return [card.name, card.number, card.rarity, card.printed_in]
-                .filter(Boolean)
-                .some(value => String(value).toLowerCase().includes(query));
-        })
-        .slice(0, 40);
 
     const handleOpenEdit = () => {
         setEditSearch(cardInfo?.name || '');
@@ -187,7 +177,7 @@ const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo,
             <FoundCardEditModal
                 visible={isEditing}
                 search={editSearch}
-                cards={matchingCards}
+                cards={allCards}
                 onSearchChange={setEditSearch}
                 onClose={() => setIsEditing(false)}
                 onSelectCard={handleReplaceCard}
