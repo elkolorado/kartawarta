@@ -178,6 +178,7 @@ const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo,
                 visible={isEditing}
                 search={editSearch}
                 cards={allCards}
+                photoUri={photoUri}
                 onSearchChange={setEditSearch}
                 onClose={() => setIsEditing(false)}
                 onSelectCard={handleReplaceCard}

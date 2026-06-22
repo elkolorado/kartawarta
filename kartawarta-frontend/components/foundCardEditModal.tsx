@@ -1,7 +1,7 @@
 import { colors } from '@/constants/themeColors';
 import { FontAwesome6 } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Image, Modal, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import CardItem from './CardItem';
 import FilterHeader from './filterHeader';
 import type { CardMarketCard } from './foundCardDetails';
@@ -12,6 +12,7 @@ type FoundCardEditModalProps = {
     visible: boolean;
     search: string;
     cards: CardMarketCard[];
+    photoUri?: string;
     onSearchChange: (value: string) => void;
     onClose: () => void;
     onSelectCard: (card: CardMarketCard) => void;
@@ -27,12 +28,14 @@ const FoundCardEditModal: React.FC<FoundCardEditModalProps> = ({
     visible,
     search,
     cards,
+    photoUri,
     onSearchChange,
     onClose,
     onSelectCard,
 }) => {
     const { width } = useWindowDimensions();
-    const columns = width >= 700 ? 3 : 2;
+    const showReferenceAside = width >= 820 && !!photoUri;
+    const columns = showReferenceAside ? 3 : width >= 700 ? 2 : 2;
     const [selectedExpansion, setSelectedExpansion] = useState('All');
     const [selectedRarity, setSelectedRarity] = useState('All');
     const [sortBy, setSortBy] = useState<'price' | 'priceTrend' | 'name'>('price');
@@ -114,23 +117,36 @@ const FoundCardEditModal: React.FC<FoundCardEditModalProps> = ({
                         />
                     </View>
 
-                    <View style={styles.resultsContainer}>
-                        {filteredCards.length > 0 ? (
-                            <WindowGrid
-                                data={filteredCards}
-                                columns={columns}
-                                contentContainerStyle={styles.resultsGrid}
-                                itemStyle={styles.gridItem}
-                                renderCard={(card) => (
-                                    <CardItem
-                                        card={card}
-                                        onPress={onSelectCard}
-                                    />
-                                )}
-                            />
-                        ) : (
-                            <View style={styles.emptyResultsGrid}>
-                                <Text style={styles.noMatchesText}>No cards found</Text>
+                    <View style={[styles.editBody, showReferenceAside && styles.editBodyWide]}>
+                        <View style={styles.resultsContainer}>
+                            {filteredCards.length > 0 ? (
+                                <WindowGrid
+                                    data={filteredCards}
+                                    columns={columns}
+                                    contentContainerStyle={styles.resultsGrid}
+                                    itemStyle={styles.gridItem}
+                                    renderCard={(card) => (
+                                        <CardItem
+                                            card={card}
+                                            onPress={onSelectCard}
+                                        />
+                                    )}
+                                />
+                            ) : (
+                                <View style={styles.emptyResultsGrid}>
+                                    <Text style={styles.noMatchesText}>No cards found</Text>
+                                </View>
+                            )}
+                        </View>
+
+                        {photoUri && (
+                            <View style={[styles.referencePanel, showReferenceAside ? styles.referencePanelAside : styles.referencePanelTop]}>
+                                <View style={styles.referenceHeader}>
+                                    <FontAwesome6 name="camera" size={12} color={colors.gold} />
+                                    <Text style={styles.referenceTitle}>Your scan</Text>
+                                </View>
+                                <Image source={{ uri: photoUri }} style={styles.referenceImage} />
+                                <Text style={styles.referenceHint}>Use this as the visual reference while selecting the correct card.</Text>
                             </View>
                         )}
                     </View>
@@ -150,7 +166,7 @@ const styles = StyleSheet.create({
     },
     editModal: {
         width: '100%',
-        maxWidth: 860,
+        maxWidth: 1040,
         maxHeight: '88%',
         borderRadius: 22,
         borderWidth: 1,
@@ -197,6 +213,16 @@ const styles = StyleSheet.create({
         marginHorizontal: -16,
         marginTop: -16,
     },
+    editBody: {
+        flex: 1,
+        minHeight: 0,
+        flexDirection: 'column-reverse',
+        gap: 12,
+    },
+    editBodyWide: {
+        flexDirection: 'row',
+        alignItems: 'stretch',
+    },
     resultsContainer: {
         flex: 1,
         minHeight: 0,
@@ -217,6 +243,46 @@ const styles = StyleSheet.create({
         color: colors.mutedForeground,
         textAlign: 'center',
         paddingVertical: 28,
+    },
+    referencePanel: {
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(212, 175, 55, 0.26)',
+        backgroundColor: 'rgba(255,255,255,0.035)',
+        padding: 10,
+    },
+    referencePanelAside: {
+        width: 210,
+        flexShrink: 0,
+    },
+    referencePanelTop: {
+        width: '100%',
+        maxHeight: 190,
+    },
+    referenceHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 7,
+        marginBottom: 8,
+    },
+    referenceTitle: {
+        color: colors.foreground,
+        fontSize: 13,
+        fontWeight: '800',
+    },
+    referenceImage: {
+        width: '100%',
+        flex: 1,
+        minHeight: 130,
+        borderRadius: 12,
+        resizeMode: 'contain',
+        backgroundColor: 'rgba(0,0,0,0.28)',
+    },
+    referenceHint: {
+        color: colors.mutedForeground,
+        fontSize: 11,
+        lineHeight: 15,
+        marginTop: 8,
     },
 });
 
