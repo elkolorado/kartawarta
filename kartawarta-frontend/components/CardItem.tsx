@@ -70,9 +70,11 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
       <View style={styles.meta}>
         <Text numberOfLines={1} style={styles.name}>{name}</Text>
         <View style={styles.row}>
-          <Text style={styles.price}>{typeof price === 'number' ? `${price}€` : (price ? String(price) : '-')}</Text>
+         <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+          {typeof price === 'number' ? `${price}€` : (price ? String(price) : '-')}
+         </Text>
           {priceTrend && (
-             <Text style={styles.price}>
+           <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                 <FontAwesome6 name="arrow-trend-up" size={14} /> {Number(priceTrend)}€
              </Text>
           )}
@@ -112,6 +114,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     padding: 8,
+    minWidth: 0,
   },
   name: {
     fontWeight: '600',
@@ -122,6 +125,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 4,
+    minWidth: 0,
   },
   collectionRow: {
     marginTop: 8,
@@ -154,6 +159,8 @@ const styles = StyleSheet.create({
   price: {
     color: colors.primary,
     fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
   },
 });
 

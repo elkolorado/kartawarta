@@ -76,6 +76,25 @@ const CompactActionButton: React.FC<CompactActionButtonProps> = ({ label, icon, 
     </TouchableOpacity>
 );
 
+const getMatchImageUri = (cardInfo?: CardMarketCard, result?: string) => {
+    if (cardInfo?.tcg_id && cardInfo?.cardMarketId) {
+        return `${API_ENDPOINT}/card-image/${cardInfo.tcg_id}/${cardInfo.cardMarketId}.png`;
+    }
+
+    if (!result) return null;
+
+    try {
+        const parsed = JSON.parse(result);
+        if (parsed?.best_match && cardInfo?.tcg_id) {
+            return `${API_ENDPOINT}/card-image/${cardInfo.tcg_id}/${parsed.best_match}`;
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+};
+
 const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo, photoUri, result, onReplaceCard }) => {
     const { addCard, removeCard, allCards } = useCardContext();
     const [isCardAdded, setIsCardAdded] = useState(false);
@@ -101,6 +120,7 @@ const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo,
 
     const price = cardInfo?.from_price
     const priceTrend = cardInfo?.price_trend ? cardInfo.price_trend : (!cardInfo?.avg && !cardInfo?.avg_1d) ? cardInfo?.trend_foil : null;
+    const matchImageUri = getMatchImageUri(cardInfo, result);
 
     const handleOpenEdit = () => {
         setEditSearch(cardInfo?.name || '');
@@ -134,11 +154,10 @@ const FoundCardDetails: React.FC<FoundCardDetailsProps> = ({ cardName, cardInfo,
 
                 {/* 3. Photos Column: Flex 1 so it shrinks/grows to fit space */}
                 <View style={styles.photosColumn}>
-                    {result && (
+                    {matchImageUri && (
                         <Image
-                            source={{
-                                uri: `${API_ENDPOINT}/card-image/${cardInfo?.tcg_id}/${JSON.parse(result).best_match}`,
-                            }}
+                            key={matchImageUri}
+                            source={{ uri: matchImageUri }}
                             style={[styles.cardImageResult, styles.cardImage]}
                         />
                     )}

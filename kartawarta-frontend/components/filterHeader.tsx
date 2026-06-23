@@ -1,6 +1,6 @@
 // @/components/FilterHeader.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import { FontAwesome6, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/constants/themeColors';
 
@@ -49,6 +49,8 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
   tertiaryFilterLabel = 'Rarities',
   statsText
 }) => {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 390;
   const [activeTab, setActiveTab] = useState<'filters' | 'sort' | null>(null);
   const [openDropdown, setOpenDropdown] = useState<'primary' | 'secondary' | 'tertiary' | null>(null);
   const [primarySearch, setPrimarySearch] = useState('');
@@ -134,7 +136,7 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerControls}>
+      <View style={[styles.headerControls, isCompact && styles.headerControlsCompact]}>
         <View style={styles.searchWrapper}>
           <FontAwesome6 name="magnifying-glass" size={14} color={colors.mutedForeground} style={styles.searchIcon} />
           <TextInput
@@ -143,6 +145,7 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={colors.mutedForeground}
+            numberOfLines={1}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity accessibilityLabel="Clear search" activeOpacity={0.75} style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
@@ -151,11 +154,12 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
           )}
         </View>
 
-        <View style={styles.buttonGroup}>
+        <View style={[styles.buttonGroup, isCompact && styles.buttonGroupCompact]}>
           {/* Unified Filter Button */}
           <TouchableOpacity
             style={[
-              styles.actionButton, 
+              styles.actionButton,
+              isCompact && styles.actionButtonCompact,
               activeTab === 'filters' && styles.buttonOpen,
               hasActiveFilters && !activeTab && styles.buttonActiveHighlight
             ]}
@@ -166,18 +170,18 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
               size={18} 
               color={activeTab === 'filters' ? "#000" : colors.foreground} 
             />
-            <Text style={[styles.actionButtonText, activeTab === 'filters' && styles.textActive]}>
+            <Text style={[styles.actionButtonText, activeTab === 'filters' && styles.textActive]} numberOfLines={1}>
               Filters
             </Text>
           </TouchableOpacity>
 
           {/* Sort Button */}
           <TouchableOpacity
-            style={[styles.actionButton, activeTab === 'sort' && styles.buttonOpen]}
+            style={[styles.actionButton, isCompact && styles.actionButtonCompact, activeTab === 'sort' && styles.buttonOpen]}
             onPress={() => setActiveTab(prev => prev === 'sort' ? null : 'sort')}
           >
             <MaterialCommunityIcons name="sort-variant" size={18} color={activeTab === 'sort' ? "#000" : colors.foreground} />
-            <Text style={[styles.actionButtonText, activeTab === 'sort' && styles.textActive]}>
+            <Text style={[styles.actionButtonText, activeTab === 'sort' && styles.textActive]} numberOfLines={1}>
               {sortOptions[currentSort]} {activeTab !== 'sort' && (sortDir === 'asc' ? '↑' : '↓')}
             </Text>
           </TouchableOpacity>
@@ -272,14 +276,16 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: { zIndex: 10, backgroundColor: colors.background },
-  headerControls: { padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' },
+  headerControls: { padding: 16, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  headerControlsCompact: { paddingHorizontal: 12, gap: 6 },
   searchWrapper: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 12, height: 44,
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, height: 44,
+    minWidth: 0,
   },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, color: colors.foreground, fontSize: 14, borderWidth: 0 },
+  searchInput: { flex: 1, minWidth: 0, color: colors.foreground, fontSize: 14, borderWidth: 0 },
   clearSearchButton: {
     width: 26,
     height: 26,
@@ -289,14 +295,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-  buttonGroup: { flexDirection: 'row', gap: 8 },
+  buttonGroup: { flexDirection: 'row', gap: 6, flexShrink: 0 },
+  buttonGroupCompact: { gap: 4 },
   actionButton: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingHorizontal: 12, height: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, gap: 6,
+    paddingHorizontal: 10, height: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, gap: 6,
+    maxWidth: 92,
   },
+  actionButtonCompact: { paddingHorizontal: 8, gap: 4, maxWidth: 82 },
   buttonOpen: { backgroundColor: colors.primary, borderColor: colors.primary },
   buttonActiveHighlight: { borderColor: colors.primary }, // Subtle hint when filters are active
-  actionButtonText: { color: colors.foreground, fontSize: 13, fontWeight: '600' },
+  actionButtonText: { color: colors.foreground, fontSize: 13, fontWeight: '600', flexShrink: 1 },
   textActive: { color: '#000' },
   dropdownMenu: {
     marginHorizontal: 16, marginBottom: 12, padding: 16,
