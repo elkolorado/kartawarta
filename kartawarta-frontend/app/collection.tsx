@@ -33,7 +33,7 @@ const FILTER_OPTIONS = [
 
 const Collection: React.FC = () => {
   const { session, isLoading } = useSession();
-  const { cardCollectionData, allCards, setTcgName, setTcgId } = useCardContext();
+  const { cardCollectionData, allCards, setTcgName, setTcgId, tcgName } = useCardContext();
   const { tcgName: routeTcgName } = useLocalSearchParams<{ tcgName?: string }>();
   const insets = useSafeAreaInsets();
 
@@ -116,7 +116,7 @@ const Collection: React.FC = () => {
           tertiaryFilterLabel="Rarities"
         />
 
-        <CollectionStats cards={memoizedCards} />
+        <CollectionStats cards={memoizedCards} exportCards={cardCollectionData} tcgName={tcgName} />
 
         <WindowGrid
           data={memoizedCards}

@@ -3,12 +3,16 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { colors } from '@/constants/themeColors';
+import { CollectionItem } from '@/context/CardContext';
+import CollectionImportExport from '@/components/collectionImportExport';
 
 interface StatsProps {
-  cards: any[];
+  cards: CollectionItem[];
+  exportCards?: CollectionItem[];
+  tcgName?: string;
 }
 
-export const CollectionStats: React.FC<StatsProps> = ({ cards }) => {
+export const CollectionStats: React.FC<StatsProps> = ({ cards, exportCards, tcgName }) => {
   const stats = React.useMemo(() => {
     const totalFromPrice = cards.reduce((sum, card) => sum + (card.from_price ?? 0) * (card.quantity ?? 0), 0);
     const totalFromPriceFoil = cards.reduce((sum, card) => sum + (card.low_foil ?? 0) * (card.quantity_foil ?? 0), 0);
@@ -33,11 +37,22 @@ export const CollectionStats: React.FC<StatsProps> = ({ cards }) => {
           </Text>
         )}
       </Text>
+      {exportCards && tcgName ? (
+        <CollectionImportExport cards={exportCards} tcgName={tcgName} />
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  statsBar: { paddingHorizontal: 16, marginBottom: 12 },
+  statsBar: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    zIndex: 20,
+  },
   statsText: { color: colors.mutedForeground, fontSize: 14 },
 });

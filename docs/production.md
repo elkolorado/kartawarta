@@ -477,6 +477,22 @@ Riftbound:
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.vps-2vcpu-4gb.yml --profile ingestion run --rm ingest-riftbound
 ```
 
+
+Cron:
+```
+sudo mkdir -p /opt/logs
+sudo chown deploy:deploy /opt/logs
+```
+test cron 
+```
+cd /opt/kartawarta && /usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile ingestion run --rm ingest-dbs ingest-riftbound >> /opt/logs/cron-docker-ingest.log 2>&1
+```
+run cron daily at 4:00
+```
+0 4 * * * cd /opt/kartawarta && /usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile ingestion run --rm ingest-dbs >> /opt/logs/cron-docker-ingest-dbs.log 2>&1
+0 4 * * * cd /opt/kartawarta && /usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile ingestion run --rm ingest-riftbound >> /opt/logs/cron-docker-ingest-riftbound.log 2>&1
+```
+
 On a 2 vCore / 4 GB VPS, run ingestion during low traffic. It can slow down backend and SQL Server.
 
 ## 13. Production monitoring without leaking metrics
