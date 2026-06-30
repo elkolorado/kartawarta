@@ -1,5 +1,5 @@
 // @/components/FilterHeader.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, useWindowDimensions } from 'react-native';
 import { FontAwesome6, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '@/constants/themeColors';
@@ -58,12 +58,33 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
 }) => {
   const { width } = useWindowDimensions();
   const isCompact = width < 390;
+  const isWideFilters = width >= 1100;
   const [activeTab, setActiveTab] = useState<'filters' | 'sort' | null>(null);
   const [openDropdown, setOpenDropdown] = useState<'primary' | 'secondary' | 'tertiary' | 'fourth' | null>(null);
   const [primarySearch, setPrimarySearch] = useState('');
   const [secondarySearch, setSecondarySearch] = useState('');
   const [tertiarySearch, setTertiarySearch] = useState('');
   const [fourthSearch, setFourthSearch] = useState('');
+  const dropdownRefs = useRef<Record<string, any>>({});
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !openDropdown) return;
+
+    const handleDocumentClick = (event: any) => {
+      const clickedDropdownSearch = event.target?.closest?.('[data-filter-dropdown-search="true"]')
+        || event.target?.getAttribute?.('data-filter-dropdown-search') === 'true';
+      if (clickedDropdownSearch) return;
+
+      const dropdownNode = dropdownRefs.current[openDropdown];
+      const eventPath = event.composedPath?.() ?? [];
+      if (dropdownNode && (dropdownNode.contains?.(event.target) || eventPath.includes(dropdownNode))) return;
+      if (event.target?.closest?.('[data-filter-dropdown="true"]')) return;
+      setOpenDropdown(null);
+    };
+
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
+  }, [openDropdown]);
 
   // Helper to check if any non-default filters are active
   const hasActiveFilters = filterMode !== 'all' && filterMode !== 'All'
@@ -99,7 +120,7 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
     const visibleOptions = filterDropdownOptions(options, search);
 
     return (
-      <View style={styles.dropdownField}>
+      <View ref={(node) => { dropdownRefs.current[dropdownKey] = node; }} dataSet={{ filterDropdown: 'true' }} style={[styles.dropdownField, isOpen && styles.dropdownFieldOpen, isWideFilters && styles.dropdownFieldInRow]}>
         <Text style={styles.menuLabel}>{label}</Text>
         <TouchableOpacity
           style={[styles.selectButton, isOpen && styles.selectButtonOpen]}
@@ -111,17 +132,20 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
 
         {isOpen && (
           <View style={styles.selectMenu}>
-            <View style={styles.dropdownSearchWrapper}>
-              <FontAwesome6 name="magnifying-glass" size={12} color={colors.mutedForeground} style={styles.searchIcon} />
-              <TextInput
-                style={styles.dropdownSearchInput}
-                placeholder={`Search ${label.toLowerCase()}...`}
-                value={search}
-                onChangeText={setSearch}
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
-            <ScrollView style={styles.selectOptionsList} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.selectOptionsList} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[0]}>
+              <View style={styles.dropdownSearchStickyHeader}>
+                <View style={styles.dropdownSearchWrapper}>
+                <FontAwesome6 name="magnifying-glass" size={12} color={colors.mutedForeground} style={styles.searchIcon} />
+                <TextInput
+                  dataSet={{ filterDropdownSearch: 'true' }}
+                  style={[styles.dropdownSearchInput, inputNoOutline]}
+                  placeholder={`Search ${label.toLowerCase()}...`}
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholderTextColor={colors.mutedForeground}
+                />
+                </View>
+              </View>
               {visibleOptions.length > 0 ? visibleOptions.map(opt => (
                 <TouchableOpacity
                   key={opt.id}
@@ -173,7 +197,7 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
     };
 
     return (
-      <View style={styles.dropdownField}>
+      <View ref={(node) => { dropdownRefs.current[dropdownKey] = node; }} dataSet={{ filterDropdown: 'true' }} style={[styles.dropdownField, isOpen && styles.dropdownFieldOpen, isWideFilters && styles.dropdownFieldInRow]}>
         <Text style={styles.menuLabel}>{label}</Text>
         <TouchableOpacity
           style={[styles.selectButton, isOpen && styles.selectButtonOpen]}
@@ -185,17 +209,20 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
 
         {isOpen && (
           <View style={styles.selectMenu}>
-            <View style={styles.dropdownSearchWrapper}>
-              <FontAwesome6 name="magnifying-glass" size={12} color={colors.mutedForeground} style={styles.searchIcon} />
-              <TextInput
-                style={styles.dropdownSearchInput}
-                placeholder={`Search ${label.toLowerCase()}...`}
-                value={search}
-                onChangeText={setSearch}
-                placeholderTextColor={colors.mutedForeground}
-              />
-            </View>
-            <ScrollView style={styles.selectOptionsList} keyboardShouldPersistTaps="handled">
+            <ScrollView style={styles.selectOptionsList} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[0]}>
+              <View style={styles.dropdownSearchStickyHeader}>
+                <View style={styles.dropdownSearchWrapper}>
+                <FontAwesome6 name="magnifying-glass" size={12} color={colors.mutedForeground} style={styles.searchIcon} />
+                <TextInput
+                  dataSet={{ filterDropdownSearch: 'true' }}
+                  style={[styles.dropdownSearchInput, inputNoOutline]}
+                  placeholder={`Search ${label.toLowerCase()}...`}
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholderTextColor={colors.mutedForeground}
+                />
+                </View>
+              </View>
               {visibleOptions.length > 0 ? visibleOptions.map(opt => {
                 const isSelected = activeIds.includes(opt.id);
                 return (
@@ -273,70 +300,70 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
 
       {/* Multi-Category Filter Dropdown */}
       {activeTab === 'filters' && (
-        <View style={styles.dropdownMenu}>
-          {isSearchableFilter(filterLabel) ? (
-            renderSearchableDropdown(
-              'primary',
-              filterLabel,
-              filterMode,
-              filterOptions,
-              onFilterPress,
-              primarySearch,
-              setPrimarySearch,
-            )
-          ) : (
-            <>
-              <Text style={styles.menuLabel}>{filterLabel}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>
-                {filterOptions.map(opt => (
-                  <TouchableOpacity
-                    key={opt.id}
-                    style={[styles.menuOption, filterMode === opt.id && styles.menuOptionActive]}
-                    onPress={() => onFilterPress(opt.id)}
-                  >
-                    <Text style={[styles.optionText, filterMode === opt.id && styles.textActive]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </>
-          )}
+        <View style={[styles.dropdownMenu, isWideFilters && styles.dropdownMenuWide]}>
+            {isSearchableFilter(filterLabel) ? (
+              renderSearchableDropdown(
+                'primary',
+                filterLabel,
+                filterMode,
+                filterOptions,
+                onFilterPress,
+                primarySearch,
+                setPrimarySearch,
+              )
+            ) : (
+              <View style={[styles.dropdownField, isWideFilters && styles.dropdownFieldInRow]}>
+                <Text style={styles.menuLabel}>{filterLabel}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>
+                  {filterOptions.map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      style={[styles.menuOption, filterMode === opt.id && styles.menuOptionActive]}
+                      onPress={() => onFilterPress(opt.id)}
+                    >
+                      <Text style={[styles.optionText, filterMode === opt.id && styles.textActive]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
-          {/* Category 2: Sets (Expansions) */}
-          {secondaryFilterOptions && (
-            renderSearchableDropdown(
-              'secondary',
-              secondaryFilterLabel,
-              secondaryFilterMode,
-              secondaryFilterOptions,
-              onSecondaryFilterPress,
-              secondarySearch,
-              setSecondarySearch,
-            )
-          )}
+            {/* Category 2: Sets (Expansions) */}
+            {secondaryFilterOptions && (
+              renderSearchableDropdown(
+                'secondary',
+                secondaryFilterLabel,
+                secondaryFilterMode,
+                secondaryFilterOptions,
+                onSecondaryFilterPress,
+                secondarySearch,
+                setSecondarySearch,
+              )
+            )}
 
-          {tertiaryFilterOptions && (
-            renderSearchableDropdown(
-              'tertiary',
-              tertiaryFilterLabel,
-              tertiaryFilterMode,
-              tertiaryFilterOptions,
-              onTertiaryFilterPress,
-              tertiarySearch,
-              setTertiarySearch,
-            )
-          )}
+            {tertiaryFilterOptions && (
+              renderSearchableDropdown(
+                'tertiary',
+                tertiaryFilterLabel,
+                tertiaryFilterMode,
+                tertiaryFilterOptions,
+                onTertiaryFilterPress,
+                tertiarySearch,
+                setTertiarySearch,
+              )
+            )}
 
-          {fourthFilterOptions && (
-            renderMultiSelectDropdown(
-              'fourth',
-              fourthFilterLabel,
-              fourthFilterMode,
-              fourthFilterOptions,
-              onFourthFilterPress,
-              fourthSearch,
-              setFourthSearch,
-            )
-          )}
+            {fourthFilterOptions && (
+              renderMultiSelectDropdown(
+                'fourth',
+                fourthFilterLabel,
+                fourthFilterMode,
+                fourthFilterOptions,
+                onFourthFilterPress,
+                fourthSearch,
+                setFourthSearch,
+              )
+            )}
         </View>
       )}
 
@@ -406,6 +433,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginBottom: 12, padding: 16,
     backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16,
     borderWidth: 1, borderColor: colors.border,
+    zIndex: 100,
+  },
+  dropdownMenuWide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 12,
   },
   menuLabel: { color: colors.mutedForeground, fontSize: 10, marginBottom: 8, fontWeight: '800', textTransform: 'uppercase' },
   optionRow: { flexDirection: 'row', gap: 8 },
@@ -415,7 +449,9 @@ const styles = StyleSheet.create({
   },
   menuOptionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   optionText: { color: colors.foreground, fontSize: 13, fontWeight: '600' },
-  dropdownField: { marginTop: 16 },
+  dropdownField: { marginTop: 16, position: 'relative', zIndex: 1 },
+  dropdownFieldOpen: { zIndex: 2000, elevation: 30 },
+  dropdownFieldInRow: { flex: 1, minWidth: 0, marginTop: 0 },
   selectButton: {
     height: 42,
     borderRadius: 10,
@@ -431,12 +467,17 @@ const styles = StyleSheet.create({
   selectButtonOpen: { borderColor: colors.primary },
   selectButtonText: { color: colors.foreground, fontSize: 13, fontWeight: '600', flex: 1 },
   selectMenu: {
-    marginTop: 8,
+    position: 'absolute',
+    top: 68,
+    left: 0,
+    right: 0,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.background,
     padding: 10,
+    zIndex: 1000,
+    elevation: 20,
   },
   dropdownSearchWrapper: {
     height: 38,
@@ -448,6 +489,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  dropdownSearchStickyHeader: {
+    backgroundColor: colors.background,
+    zIndex: 2,
   },
   dropdownSearchInput: { flex: 1, color: colors.foreground, fontSize: 13 },
   selectOptionsList: { maxHeight: 220 },

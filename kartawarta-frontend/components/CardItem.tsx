@@ -171,7 +171,7 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
       />
       <TouchableOpacity
         style={[styles.card, selected && styles.cardSelected]}
-        onPress={() => selectionActive ? onToggleSelect?.() : onPress && onPress(card)}
+        onPress={(event: any) => selectionActive ? onToggleSelect?.(event) : onPress && onPress(card)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
