@@ -20,6 +20,7 @@ type LabelPickerModalProps = {
   includeNoLabel?: boolean;
   startQuantitiesAtZero?: boolean;
   mode?: 'select' | 'allocate';
+  singleSelect?: boolean;
   confirmLabel?: string;
   isWorking?: boolean;
   onCreateLabel: (name: string) => Promise<UserLabel | null>;
@@ -41,6 +42,7 @@ const LabelPickerModal: React.FC<LabelPickerModalProps> = ({
   includeNoLabel = false,
   startQuantitiesAtZero = false,
   mode = 'select',
+  singleSelect = false,
   confirmLabel = 'Save labels',
   isWorking = false,
   onCreateLabel,
@@ -83,7 +85,10 @@ const LabelPickerModal: React.FC<LabelPickerModalProps> = ({
   const hasQuantityChanged = (label: UserLabel) => getDisplayQuantity(label) !== getBaseQuantity(label);
 
   const toggleLabel = (labelId: number) => {
-    setSelectedIds(prev => prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId]);
+    setSelectedIds(prev => {
+      if (singleSelect) return [labelId];
+      return prev.includes(labelId) ? prev.filter(id => id !== labelId) : [...prev, labelId];
+    });
     if (mode === 'allocate') {
       setQuantities(prev => ({ ...prev, [labelId]: prev[labelId] ?? 1 }));
     }

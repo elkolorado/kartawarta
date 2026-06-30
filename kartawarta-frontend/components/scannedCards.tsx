@@ -73,12 +73,12 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateRes
         return Array.from(grouped.values());
     }, [results]);
 
-    const saveBulkAction = async (action: 'add' | 'remove', labelIds: number[] = []) => {
+    const saveBulkAction = async (action: 'add' | 'remove', labelIds: number[] = [], labelQuantities: Record<number, number> = {}) => {
         if (results.length === 0 || isBulkWorking) return;
 
         setIsBulkWorking(true);
         try {
-            const success = await bulkUpdateCollection(action, bulkItems, action === 'add' ? labelIds : []);
+            const success = await bulkUpdateCollection(action, bulkItems, action === 'add' ? labelIds : [], action === 'add' ? labelQuantities : {});
             if (success) {
                 await fetchCollection(tcgId ?? undefined);
                 setHasSavedBatch(action === 'add');
@@ -100,7 +100,8 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateRes
 
     const handleLabelConfirm = async (labelIds: number[], labelQuantities?: Record<number, number>) => {
         setIsLabelPickerOpen(false);
-        const chosenLabelIds = labelIds.filter(labelId => labelId > 0 && (labelQuantities?.[labelId] ?? 0) > 0);
+        const selectedLabelId = Number(labelIds[0] ?? 0);
+        const chosenLabelIds = selectedLabelId > 0 ? [selectedLabelId] : [];
         await saveBulkAction('add', chosenLabelIds);
     };
 
@@ -156,14 +157,14 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateRes
                 <LabelPickerModal
                     visible={isLabelPickerOpen}
                     labels={labels}
-                    title="Edit card quality"
-                    description="By default cards are saved as No label. Add quantity to labels only when you want to place them there too."
-                    mode="allocate"
-                    maxQuantity={1}
+                    title="Save scanned cards"
+                    description="Choose which label all scanned cards should be saved to."
+                    mode="select"
+                    singleSelect
+                    initialSelectedIds={[0]}
                     includeNoLabel
-                    startQuantitiesAtZero
                     isWorking={isBulkWorking}
-                    confirmLabel="Save"
+                    confirmLabel="Save all"
                     onCreateLabel={createLabel}
                     onUpdateLabel={updateLabel}
                     onDeleteLabel={deleteLabel}

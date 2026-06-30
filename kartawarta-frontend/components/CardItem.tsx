@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image'; // Import from expo-image
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useCardContext } from '@/context/CardContext';
@@ -17,11 +17,15 @@ interface Props {
   dimmed?: boolean;
   displayQuantity?: number;
   activeLabelIds?: number[];
+  selectable?: boolean;
+  selected?: boolean;
+  selectionActive?: boolean;
+  onToggleSelect?: (event?: any) => void;
 }
 
 
 
-const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimmed = false, displayQuantity, activeLabelIds = [] }) => {
+const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimmed = false, displayQuantity, activeLabelIds = [], selectable = false, selected = false, selectionActive = false, onToggleSelect }) => {
   const imageUrl = `${API_ENDPOINT}/card-image/${card.tcg_id}/${card.cardMarketId}.png`;
   
   const name = card.name || 'Unknown';
@@ -34,6 +38,7 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
   const [collectionQty, setCollectionQty] = useState<number>(0);
   const [collectionEntry, setCollectionEntry] = useState<any>(null);
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (!showCollection) return;
@@ -164,7 +169,23 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
         onCancel={() => setIsLabelModalOpen(false)}
         onConfirm={handleLabelActionConfirm}
       />
-      <TouchableOpacity style={styles.card} onPress={() => onPress && onPress(card)}>
+      <TouchableOpacity
+        style={[styles.card, selected && styles.cardSelected]}
+        onPress={() => selectionActive ? onToggleSelect?.() : onPress && onPress(card)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+      {selectable && (isHovered || selected || selectionActive) && (
+        <Pressable
+          style={[styles.selectOverlay, selected && styles.selectOverlayActive]}
+          onPress={(event: any) => {
+            event?.stopPropagation?.();
+            onToggleSelect?.(event);
+          }}
+        >
+          {selected ? <FontAwesome6 name="check" size={13} color={colors.background} /> : null}
+        </Pressable>
+      )}
       <Image
         source={imageUrl}
         style={[
@@ -216,6 +237,26 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.card,
+  },
+  cardSelected: {
+    borderColor: colors.primary,
+  },
+  selectOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    zIndex: 30,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectOverlayActive: {
+    backgroundColor: colors.primary,
   },
   image: {
     width: '100%',
