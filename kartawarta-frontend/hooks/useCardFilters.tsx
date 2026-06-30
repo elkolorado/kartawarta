@@ -5,12 +5,13 @@ interface FilterConfig {
   searchQuery: string;
   selectedExpansion: string;
   selectedRarity?: string;
+  selectedLabels?: string[];
   sortBy: string;
   sortDir: 'asc' | 'desc';
 }
 
 export const useCardFilters = (cards: any[], config: FilterConfig) => {
-  const { searchQuery, selectedExpansion, selectedRarity, sortBy, sortDir } = config;
+  const { searchQuery, selectedExpansion, selectedRarity, selectedLabels = ['All'], sortBy, sortDir } = config;
 
   return useMemo(() => {
     let list = [...cards];
@@ -25,7 +26,18 @@ export const useCardFilters = (cards: any[], config: FilterConfig) => {
       list = list.filter((c) => String(c.rarity || '').toLowerCase() === selectedRarity.toLowerCase());
     }
 
-    // 3. Search Filter
+    // 3. User Labels Filter
+    if (selectedLabels.length > 0 && !selectedLabels.includes('All')) {
+      const selectedLabelIds = new Set(selectedLabels.map(String));
+      list = list.filter((c) => {
+        const labels = Array.isArray(c.labels) ? c.labels : [];
+        const labeledQuantity = labels.reduce((sum: number, label: any) => sum + Number(label.quantity ?? 0), 0);
+        const noLabelQuantity = Math.max(0, Number(c.quantity ?? 0) - labeledQuantity);
+        return (selectedLabelIds.has('0') && noLabelQuantity > 0) || labels.some((label: any) => selectedLabelIds.has(String(label.id)));
+      });
+    }
+
+    // 4. Search Filter
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       list = list.filter((c) =>
@@ -33,7 +45,7 @@ export const useCardFilters = (cards: any[], config: FilterConfig) => {
       );
     }
 
-    // 4. Sorting Logic
+    // 5. Sorting Logic
     const dir = sortDir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
       switch (sortBy) {
@@ -52,5 +64,5 @@ export const useCardFilters = (cards: any[], config: FilterConfig) => {
     });
 
     return list;
-  }, [cards, searchQuery, selectedExpansion, selectedRarity, sortBy, sortDir]);
+  }, [cards, searchQuery, selectedExpansion, selectedRarity, selectedLabels, sortBy, sortDir]);
 };

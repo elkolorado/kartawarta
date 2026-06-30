@@ -100,6 +100,26 @@ CREATE TABLE UserCollection (
     CONSTRAINT UQ_UserCollection UNIQUE (user_id, card_id)
 );
 
+CREATE TABLE UserLabel (
+    id INT IDENTITY PRIMARY KEY,
+    user_id INT NOT NULL,
+    name NVARCHAR(100) NOT NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (user_id) REFERENCES [User](id),
+    CONSTRAINT UQ_UserLabel UNIQUE (user_id, name)
+);
+
+CREATE TABLE UserCollectionLabel (
+    user_collection_id INT NOT NULL,
+    label_id INT NOT NULL,
+    quantity INT DEFAULT 0,
+    quantity_foil INT DEFAULT 0,
+    created_at DATETIME DEFAULT GETDATE(),
+    PRIMARY KEY (user_collection_id, label_id),
+    FOREIGN KEY (user_collection_id) REFERENCES UserCollection(id) ON DELETE CASCADE,
+    FOREIGN KEY (label_id) REFERENCES UserLabel(id) ON DELETE CASCADE
+);
+
 -- =========================
 -- DECKS
 -- =========================

@@ -9,6 +9,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import SwipeableRow from './swipeableCardDetails';
 import { useSession } from '@/hooks/useAuth';
 import { useCardContext } from '@/context/CardContext';
+import LabelPickerModal from './labelPickerModal';
 type Props = {
     results: any[];
     style?: object;
@@ -24,9 +25,10 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateRes
 
     const swipeRef = useRef<any>(null);
     const { bulkUpdateCollection } = useSession();
-    const { fetchCollection, tcgId } = useCardContext();
+    const { fetchCollection, tcgId, labels, fetchLabels, createLabel, updateLabel, deleteLabel } = useCardContext();
     const [isBulkWorking, setIsBulkWorking] = useState(false);
     const [hasSavedBatch, setHasSavedBatch] = useState(false);
+    const [isLabelPickerOpen, setIsLabelPickerOpen] = useState(false);
 
     const totalPrice = useMemo(() => {
         return results.reduce((total, card) => {
@@ -71,12 +73,12 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateRes
         return Array.from(grouped.values());
     }, [results]);
 
-    const handleBulkAction = async (action: 'add' | 'remove') => {
+    const saveBulkAction = async (action: 'add' | 'remove', labelIds: number[] = []) => {
         if (results.length === 0 || isBulkWorking) return;
 
         setIsBulkWorking(true);
         try {
-            const success = await bulkUpdateCollection(action, bulkItems);
+            const success = await bulkUpdateCollection(action, bulkItems, action === 'add' ? labelIds : []);
             if (success) {
                 await fetchCollection(tcgId ?? undefined);
                 setHasSavedBatch(action === 'add');
@@ -84,6 +86,22 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateRes
         } finally {
             setIsBulkWorking(false);
         }
+    };
+
+    const handleBulkAction = async (action: 'add' | 'remove') => {
+        if (action === 'add') {
+            await fetchLabels();
+            setIsLabelPickerOpen(true);
+            return;
+        }
+
+        await saveBulkAction('remove');
+    };
+
+    const handleLabelConfirm = async (labelIds: number[], labelQuantities?: Record<number, number>) => {
+        setIsLabelPickerOpen(false);
+        const chosenLabelIds = labelIds.filter(labelId => labelId > 0 && (labelQuantities?.[labelId] ?? 0) > 0);
+        await saveBulkAction('add', chosenLabelIds);
     };
 
     const handleClearQueue = () => {
@@ -135,6 +153,24 @@ const ScannedCards: React.FC<Props> = ({ results, style, removeResult, updateRes
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <View style={style}>
+                <LabelPickerModal
+                    visible={isLabelPickerOpen}
+                    labels={labels}
+                    title="Edit card quality"
+                    description="By default cards are saved as No label. Add quantity to labels only when you want to place them there too."
+                    mode="allocate"
+                    maxQuantity={1}
+                    includeNoLabel
+                    startQuantitiesAtZero
+                    isWorking={isBulkWorking}
+                    confirmLabel="Save"
+                    onCreateLabel={createLabel}
+                    onUpdateLabel={updateLabel}
+                    onDeleteLabel={deleteLabel}
+                    onCancel={() => setIsLabelPickerOpen(false)}
+                    onConfirm={handleLabelConfirm}
+                />
+
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <Text style={{ fontSize: 16, color: colors.primary, fontWeight: '700' }}>Scanned Cards</Text>

@@ -34,6 +34,11 @@ interface FilterHeaderProps {
   tertiaryFilterOptions?: FilterOption[];
   onTertiaryFilterPress?: (id: string) => void;
   tertiaryFilterLabel?: string;
+  // Fourth Filter (screen-defined, supports multi-select)
+  fourthFilterMode?: string[];
+  fourthFilterOptions?: FilterOption[];
+  onFourthFilterPress?: (ids: string[]) => void;
+  fourthFilterLabel?: string;
   // Metadata
   statsText?: string;
 }
@@ -47,22 +52,26 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
   secondaryFilterLabel = 'Expansions',
   tertiaryFilterMode, tertiaryFilterOptions, onTertiaryFilterPress,
   tertiaryFilterLabel = 'Rarities',
+  fourthFilterMode = ['All'], fourthFilterOptions, onFourthFilterPress,
+  fourthFilterLabel = 'Labels',
   statsText
 }) => {
   const { width } = useWindowDimensions();
   const isCompact = width < 390;
   const [activeTab, setActiveTab] = useState<'filters' | 'sort' | null>(null);
-  const [openDropdown, setOpenDropdown] = useState<'primary' | 'secondary' | 'tertiary' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'primary' | 'secondary' | 'tertiary' | 'fourth' | null>(null);
   const [primarySearch, setPrimarySearch] = useState('');
   const [secondarySearch, setSecondarySearch] = useState('');
   const [tertiarySearch, setTertiarySearch] = useState('');
+  const [fourthSearch, setFourthSearch] = useState('');
 
   // Helper to check if any non-default filters are active
   const hasActiveFilters = filterMode !== 'all' && filterMode !== 'All'
     || (secondaryFilterMode && secondaryFilterMode !== 'All')
-    || (tertiaryFilterMode && tertiaryFilterMode !== 'All');
+    || (tertiaryFilterMode && tertiaryFilterMode !== 'All')
+    || (fourthFilterMode.length > 0 && !fourthFilterMode.includes('All'));
 
-  const isSearchableFilter = (label: string) => ['expansions', 'rarities'].includes(label.toLowerCase());
+  const isSearchableFilter = (label: string) => ['expansions', 'rarities', 'labels'].includes(label.toLowerCase());
 
   const getOptionLabel = (options: FilterOption[] | undefined, id: string | undefined, fallback: string) => {
     if (!id) return fallback;
@@ -77,7 +86,7 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
   };
 
   const renderSearchableDropdown = (
-    dropdownKey: 'primary' | 'secondary' | 'tertiary',
+    dropdownKey: 'primary' | 'secondary' | 'tertiary' | 'fourth',
     label: string,
     selectedId: string | undefined,
     options: FilterOption[],
@@ -125,6 +134,80 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
                   <Text style={[styles.optionText, selectedId === opt.id && styles.textActive]} numberOfLines={1}>{opt.label}</Text>
                 </TouchableOpacity>
               )) : (
+                <Text style={styles.emptyOptionsText}>No options found</Text>
+              )}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderMultiSelectDropdown = (
+    dropdownKey: 'fourth',
+    label: string,
+    selectedIds: string[],
+    options: FilterOption[],
+    onSelect: ((ids: string[]) => void) | undefined,
+    search: string,
+    setSearch: (value: string) => void,
+  ) => {
+    const isOpen = openDropdown === dropdownKey;
+    const visibleOptions = filterDropdownOptions(options, search);
+    const activeIds = selectedIds.length > 0 ? selectedIds : ['All'];
+    const selectedLabel = activeIds.includes('All')
+      ? getOptionLabel(options, 'All', label)
+      : `${activeIds.length} selected`;
+
+    const toggleOption = (id: string) => {
+      if (id === 'All') {
+        onSelect?.(['All']);
+        return;
+      }
+
+      const withoutAll = activeIds.filter(activeId => activeId !== 'All');
+      const next = withoutAll.includes(id)
+        ? withoutAll.filter(activeId => activeId !== id)
+        : [...withoutAll, id];
+      onSelect?.(next.length > 0 ? next : ['All']);
+    };
+
+    return (
+      <View style={styles.dropdownField}>
+        <Text style={styles.menuLabel}>{label}</Text>
+        <TouchableOpacity
+          style={[styles.selectButton, isOpen && styles.selectButtonOpen]}
+          onPress={() => setOpenDropdown(prev => prev === dropdownKey ? null : dropdownKey)}
+        >
+          <Text style={styles.selectButtonText} numberOfLines={1}>{selectedLabel}</Text>
+          <FontAwesome6 name={isOpen ? 'chevron-up' : 'chevron-down'} size={12} color={colors.mutedForeground} />
+        </TouchableOpacity>
+
+        {isOpen && (
+          <View style={styles.selectMenu}>
+            <View style={styles.dropdownSearchWrapper}>
+              <FontAwesome6 name="magnifying-glass" size={12} color={colors.mutedForeground} style={styles.searchIcon} />
+              <TextInput
+                style={styles.dropdownSearchInput}
+                placeholder={`Search ${label.toLowerCase()}...`}
+                value={search}
+                onChangeText={setSearch}
+                placeholderTextColor={colors.mutedForeground}
+              />
+            </View>
+            <ScrollView style={styles.selectOptionsList} keyboardShouldPersistTaps="handled">
+              {visibleOptions.length > 0 ? visibleOptions.map(opt => {
+                const isSelected = activeIds.includes(opt.id);
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[styles.selectOption, isSelected && styles.selectOptionActive]}
+                    onPress={() => toggleOption(opt.id)}
+                  >
+                    <Text style={[styles.optionText, isSelected && styles.textActive]} numberOfLines={1}>{isSelected ? '✓ ' : ''}{opt.label}</Text>
+                  </TouchableOpacity>
+                );
+              }) : (
                 <Text style={styles.emptyOptionsText}>No options found</Text>
               )}
             </ScrollView>
@@ -240,6 +323,18 @@ const FilterHeader: React.FC<FilterHeaderProps> = ({
               onTertiaryFilterPress,
               tertiarySearch,
               setTertiarySearch,
+            )
+          )}
+
+          {fourthFilterOptions && (
+            renderMultiSelectDropdown(
+              'fourth',
+              fourthFilterLabel,
+              fourthFilterMode,
+              fourthFilterOptions,
+              onFourthFilterPress,
+              fourthSearch,
+              setFourthSearch,
             )
           )}
         </View>

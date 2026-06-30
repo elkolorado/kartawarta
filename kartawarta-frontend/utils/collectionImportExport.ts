@@ -5,6 +5,7 @@ const EXPORT_COLUMNS = [
   'card_name',
   'quantity',
   'quantity_foil',
+  'labels',
 ];
 
 const escapeCsvValue = (value: unknown) => {
@@ -18,6 +19,20 @@ const normalizeExportCardName = (value: unknown) => {
   return String(value).replace(/""/g, '"');
 };
 
+const formatExportLabels = (card: CollectionItem) => {
+  if (!Array.isArray(card.labels) || card.labels.length === 0) return '';
+
+  return card.labels
+    .filter(label => (label.quantity ?? 0) > 0 || (label.quantity_foil ?? 0) > 0)
+    .map(label => {
+      const parts = [];
+      if ((label.quantity ?? 0) > 0) parts.push(`${label.quantity}`);
+      if ((label.quantity_foil ?? 0) > 0) parts.push(`${label.quantity_foil} foil`);
+      return `${label.name}:${parts.join('+') || 0}`;
+    })
+    .join('; ');
+};
+
 export const buildCollectionCsv = (cards: CollectionItem[]) => {
   const ownedCards = cards.filter(card => (card.quantity ?? 0) > 0 || (card.quantity_foil ?? 0) > 0);
   const lines = [EXPORT_COLUMNS.join(',')];
@@ -29,6 +44,7 @@ export const buildCollectionCsv = (cards: CollectionItem[]) => {
         case 'card_name': return escapeCsvValue(normalizeExportCardName(card.name));
         case 'quantity': return escapeCsvValue(card.quantity ?? 0);
         case 'quantity_foil': return escapeCsvValue(card.quantity_foil ?? 0);
+        case 'labels': return escapeCsvValue(formatExportLabels(card));
         default: return escapeCsvValue((card as any)[column]);
       }
     }).join(','));

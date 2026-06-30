@@ -52,3 +52,8 @@ export const getRarityOptions = (cards: CollectionItem[]): RarityOption[] => {
 
   return [{ id: 'All', label: 'All Rarities' }, ...Array.from(rarityMap.values()).sort((a, b) => a.label.localeCompare(b.label))];
 };
+
+export const getLabelOptions = (labels: Array<{ id: number; name: string }>): RarityOption[] => {
+  const sortedLabels = [...labels].sort((a, b) => a.name.localeCompare(b.name));
+  return [{ id: 'All', label: 'All Labels' }, { id: '0', label: 'No label' }, ...sortedLabels.map(label => ({ id: String(label.id), label: label.name }))];
+};

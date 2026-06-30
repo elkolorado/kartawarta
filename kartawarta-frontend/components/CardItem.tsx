@@ -7,17 +7,21 @@ import { useCardContext } from '@/context/CardContext';
 import { API_ENDPOINT } from '@/constants/apiConfig';
 import { colors } from '@/constants/themeColors';
 import { CardMarketCard } from './foundCardDetails';
+import LabelPickerModal from './labelPickerModal';
+import { useSession } from '@/hooks/useAuth';
 
 interface Props {
   card: CardMarketCard;
   onPress?: (card: any) => void;
   showCollection?: boolean;
   dimmed?: boolean;
+  displayQuantity?: number;
+  activeLabelIds?: number[];
 }
 
 
 
-const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimmed = false }) => {
+const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimmed = false, displayQuantity, activeLabelIds = [] }) => {
   const imageUrl = `${API_ENDPOINT}/card-image/${card.tcg_id}/${card.cardMarketId}.png`;
   
   const name = card.name || 'Unknown';
@@ -25,8 +29,11 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
   const priceTrend = card.price_trend ? card.price_trend : (!card.avg && !card.avg_1d) ? card.trend_foil : null;
 
   // Collection Logic
-  const { cardCollectionData, addCard, removeCard } = useCardContext();
+  const { bulkUpdateCollection } = useSession();
+  const { cardCollectionData, labels, fetchLabels, createLabel, updateLabel, deleteLabel, fetchCollection, tcgId, removeCard } = useCardContext();
   const [collectionQty, setCollectionQty] = useState<number>(0);
+  const [collectionEntry, setCollectionEntry] = useState<any>(null);
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
 
   useEffect(() => {
     if (!showCollection) return;
@@ -39,22 +46,125 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
       }
       return false;
     });
-    setCollectionQty(entry?.quantity ?? 0);
-  }, [showCollection, cardCollectionData, card.cardMarketId, card.card_id]);
+    setCollectionEntry(entry ?? null);
+    setCollectionQty(displayQuantity ?? entry?.quantity ?? 0);
+  }, [showCollection, cardCollectionData, card.cardMarketId, card.card_id, displayQuantity]);
+
+  const openLabelQuantityModal = async () => {
+    if (!showCollection) return;
+    await fetchLabels();
+    setIsLabelModalOpen(true);
+  };
 
   const handleAdd = async () => {
-    try { await addCard(card, 1, 0); } catch (e) { console.error(e); }
+    await openLabelQuantityModal();
   };
 
   const handleRemove = async () => {
+    await openLabelQuantityModal();
+  };
+
+  const labelQuantityById = React.useMemo(() => {
+    const result: Record<number, number> = {};
+    const totalQuantity = Number(collectionEntry?.quantity ?? 0);
+    let labeledQuantity = 0;
+    (collectionEntry?.labels ?? []).forEach((label: any) => {
+      const quantity = Number(label.quantity ?? 0);
+      result[label.id] = quantity;
+      labeledQuantity += quantity;
+    });
+    result[0] = Math.max(0, totalQuantity - labeledQuantity);
+    return result;
+  }, [collectionEntry]);
+
+  const labelModalLabels = React.useMemo(() => {
+    return labels;
+  }, [labels]);
+
+  const addQuantityByLabel = React.useMemo(() => ({
+    ...Object.fromEntries((collectionEntry?.labels ?? []).map((label: any) => [label.id, Number(label.quantity ?? 0)])),
+    0: labelQuantityById[0] ?? 0,
+  }), [collectionEntry, labelQuantityById]);
+
+  const singleActionMaxByLabel = React.useMemo(() => {
+    const maxByLabel: Record<number, number> = {};
+    Object.keys(labelQuantityById).forEach(labelId => {
+      maxByLabel[Number(labelId)] = Number.MAX_SAFE_INTEGER;
+    });
+    labels.forEach(label => { maxByLabel[label.id] = Number.MAX_SAFE_INTEGER; });
+    maxByLabel[0] = Number.MAX_SAFE_INTEGER;
+    return maxByLabel;
+  }, [labelQuantityById, labels]);
+
+  const cardBulkItem = React.useMemo(() => ({
+    card_id: typeof card.card_id === 'number' ? card.card_id : undefined,
+    card_market_id: typeof card.cardMarketId === 'number' ? card.cardMarketId : undefined,
+    quantity: 1,
+    quantity_foil: 0,
+  }), [card.cardMarketId, card.card_id]);
+
+  const addCardForLabel = async (labelId?: number, quantity = 1) => {
+    const item = { ...cardBulkItem, quantity };
+    const success = await bulkUpdateCollection('add', [item], labelId && labelId > 0 ? [labelId] : [], labelId && labelId > 0 ? { [labelId]: quantity } : {});
+    if (success) await fetchCollection(tcgId ?? undefined);
+  };
+
+  const removeCardForLabel = async (labelId?: number, quantity = 1) => {
+    const id = card.cardMarketId || card.card_id || 0;
+    if (id) await removeCard(id, quantity, 0, labelId && labelId > 0 ? labelId : undefined);
+  };
+
+  const handleLabelActionConfirm = async (_labelIds: number[], quantities?: Record<number, number>) => {
+    const changedEntries = Object.entries(quantities ?? {}).filter(([labelId, nextQuantity]) => {
+      const previousQuantity = Number(addQuantityByLabel[Number(labelId)] ?? 0);
+      return Number(nextQuantity) !== previousQuantity;
+    });
+    if (changedEntries.length === 0) {
+      setIsLabelModalOpen(false);
+      return;
+    }
+    setIsLabelModalOpen(false);
     try {
-      const id = card.cardMarketId || card.card_id || 0;
-      if (id) await removeCard(id, 1, 0);
+      const labelDeltas: Record<number, number> = {};
+      let totalAddDelta = 0;
+      for (const [labelId, nextQuantity] of changedEntries) {
+        const numericLabelId = Number(labelId);
+        const previousQuantity = Number(addQuantityByLabel[numericLabelId] ?? 0);
+        const delta = Number(nextQuantity) - previousQuantity;
+        if (delta > 0) {
+          totalAddDelta += delta;
+          if (numericLabelId > 0) labelDeltas[numericLabelId] = delta;
+        } else if (delta < 0) {
+          await removeCardForLabel(numericLabelId || undefined, Math.abs(delta));
+        }
+      }
+      if (totalAddDelta > 0) {
+        const success = await bulkUpdateCollection('add', [{ ...cardBulkItem, quantity: totalAddDelta }], Object.keys(labelDeltas).map(Number), labelDeltas);
+        if (success) await fetchCollection(tcgId ?? undefined);
+      }
     } catch (e) { console.error(e); }
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPress && onPress(card)}>
+    <>
+      <LabelPickerModal
+        visible={isLabelModalOpen}
+        title="Edit card quality"
+        description="Adjust quantities per label."
+        labels={labelModalLabels}
+        mode="allocate"
+        maxQuantity={0}
+        quantityByLabel={addQuantityByLabel}
+        maxQuantityByLabel={singleActionMaxByLabel}
+        includeNoLabel
+        confirmLabel="Save"
+        onCreateLabel={createLabel}
+        onUpdateLabel={updateLabel}
+        onDeleteLabel={deleteLabel}
+        onCancel={() => setIsLabelModalOpen(false)}
+        onConfirm={handleLabelActionConfirm}
+      />
+      <TouchableOpacity style={styles.card} onPress={() => onPress && onPress(card)}>
       <Image
         source={imageUrl}
         style={[
@@ -82,7 +192,7 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
 
         {showCollection && (
           <View style={styles.collectionRow}>
-            <TouchableOpacity onPress={handleRemove} style={styles.qtyBtn} disabled={collectionQty <= 0}>
+            <TouchableOpacity onPress={handleRemove} style={styles.qtyBtn}>
               <Text style={styles.qtyBtnText}>-</Text>
             </TouchableOpacity>
             <Text style={styles.qtyText}>{collectionQty}</Text>
@@ -92,7 +202,8 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
           </View>
         )}
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </>
   );
 };
 

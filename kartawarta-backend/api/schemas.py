@@ -27,11 +27,16 @@ class BulkCollectionItem(BaseModel):
     card_market_id: Optional[int] = None
     quantity: int = 1
     quantity_foil: int = 0
+    label_quantities: dict[int, int] = {}
+    label_foil_quantities: dict[int, int] = {}
 
 
 class BulkCollectionRequest(BaseModel):
     action: Literal["add", "remove"]
     items: list[BulkCollectionItem]
+    label_ids: list[int] = []
+    label_quantities: dict[int, int] = {}
+    label_foil_quantities: dict[int, int] = {}
 
 
 class BulkCollectionResponse(BaseModel):
@@ -61,3 +66,16 @@ class RemoveCardRequest(BaseModel):
     card_id: Optional[int] = None
     quantity: int = 1
     quantity_foil: int = 0
+    label_id: Optional[int] = None
+
+
+class UserLabelCreateRequest(BaseModel):
+    name: str
+
+
+class UserLabelUpdateRequest(BaseModel):
+    name: str
+
+
+class UserCollectionLabelsRequest(BaseModel):
+    label_ids: list[int]

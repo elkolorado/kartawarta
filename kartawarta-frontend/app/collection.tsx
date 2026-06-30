@@ -8,7 +8,7 @@ import CardItem from '@/components/CardItem';
 import FilterHeader from '@/components/filterHeader';
 
 import { useCardFilters } from '@/hooks/useCardFilters';
-import { getExpansionOptions, getRarityOptions } from '@/utils/cardUtils';
+import { getExpansionOptions, getLabelOptions, getRarityOptions } from '@/utils/cardUtils';
 
 // Context & Theme
 import { useCardContext } from '../context/CardContext';
@@ -33,7 +33,7 @@ const FILTER_OPTIONS = [
 
 const Collection: React.FC = () => {
   const { session, isLoading } = useSession();
-  const { cardCollectionData, allCards, setTcgName, setTcgId, tcgName } = useCardContext();
+  const { cardCollectionData, allCards, labels, setTcgName, setTcgId, tcgName } = useCardContext();
   const { tcgName: routeTcgName } = useLocalSearchParams<{ tcgName?: string }>();
   const insets = useSafeAreaInsets();
 
@@ -51,10 +51,13 @@ const Collection: React.FC = () => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedExpansion, setSelectedExpansion] = useState('All');
   const [selectedRarity, setSelectedRarity] = useState('All');
+  const [selectedLabels, setSelectedLabels] = useState<string[]>(['All']);
 
   // 1. Prepare Expansion Options
   const expansionOptions = useMemo(() => getExpansionOptions(allCards), [allCards]);
   const rarityOptions = useMemo(() => getRarityOptions(allCards), [allCards]);
+  const labelOptions = useMemo(() => getLabelOptions(labels), [labels]);
+  const activeLabelIds = useMemo(() => selectedLabels.includes('All') ? [] : selectedLabels.map(Number).filter(Number.isFinite), [selectedLabels]);
 
   // 2. Determine the Base List (Before Filtering/Sorting)
   const baseList = useMemo(() => {
@@ -74,9 +77,23 @@ const Collection: React.FC = () => {
     searchQuery,
     selectedExpansion,
     selectedRarity,
+    selectedLabels,
     sortBy,
     sortDir,
   });
+
+  const displayCards = useMemo(() => {
+    if (activeLabelIds.length === 0) return memoizedCards;
+    const activeLabelSet = new Set(activeLabelIds.map(String));
+    return memoizedCards.map(card => {
+      const matchingLabels = Array.isArray(card.labels) ? card.labels.filter((label: any) => activeLabelSet.has(String(label.id))) : [];
+      const labeledQuantity = Array.isArray(card.labels) ? card.labels.reduce((sum: number, label: any) => sum + Number(label.quantity ?? 0), 0) : 0;
+      const noLabelQuantity = activeLabelSet.has('0') ? Math.max(0, Number(card.quantity ?? 0) - labeledQuantity) : 0;
+      const labelQuantity = noLabelQuantity + matchingLabels.reduce((sum: number, label: any) => sum + Number(label.quantity ?? 0), 0);
+      const labelFoilQuantity = matchingLabels.reduce((sum: number, label: any) => sum + Number(label.quantity_foil ?? 0), 0);
+      return { ...card, quantity: labelQuantity, quantity_foil: labelFoilQuantity };
+    });
+  }, [activeLabelIds, memoizedCards]);
 
   const handleSortPress = (id: string) => {
     if (sortBy === id) {
@@ -114,16 +131,22 @@ const Collection: React.FC = () => {
           tertiaryFilterOptions={rarityOptions}
           onTertiaryFilterPress={setSelectedRarity}
           tertiaryFilterLabel="Rarities"
+          fourthFilterMode={selectedLabels}
+          fourthFilterOptions={labelOptions}
+          onFourthFilterPress={setSelectedLabels}
+          fourthFilterLabel="Labels"
         />
 
-        <CollectionStats cards={memoizedCards} exportCards={cardCollectionData} tcgName={tcgName} />
+        <CollectionStats cards={displayCards} exportCards={cardCollectionData} tcgName={tcgName} />
 
         <WindowGrid
-          data={memoizedCards}
+          data={displayCards}
           renderCard={(item) => (
             <CardItem
               card={item}
               showCollection={true}
+              displayQuantity={item.quantity ?? 0}
+              activeLabelIds={activeLabelIds}
               dimmed={filterMode === 'unowned' || (item.quantity ?? 0) === 0}
               onPress={(c) => Linking.openURL(c?.card_url).catch(() => {})}
             />

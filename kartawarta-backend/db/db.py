@@ -244,10 +244,99 @@ def get_expansions_by_tcg_id(tcg_id: int) -> List[Dict[str, Any]]:
 # -----------------
 # User collection APIs
 # -----------------
+def ensure_user_label_tables(cursor):
+    """Create user label tables for existing databases that predate labels."""
+    cursor.execute('''
+        IF OBJECT_ID('dbo.UserLabel', 'U') IS NULL
+        BEGIN
+            CREATE TABLE UserLabel (
+                id INT IDENTITY PRIMARY KEY,
+                user_id INT NOT NULL,
+                name NVARCHAR(100) NOT NULL,
+                created_at DATETIME DEFAULT GETDATE(),
+                FOREIGN KEY (user_id) REFERENCES [User](id),
+                CONSTRAINT UQ_UserLabel UNIQUE (user_id, name)
+            )
+        END
+    ''')
+    cursor.execute('''
+        IF OBJECT_ID('dbo.UserCollectionLabel', 'U') IS NULL
+        BEGIN
+            CREATE TABLE UserCollectionLabel (
+                user_collection_id INT NOT NULL,
+                label_id INT NOT NULL,
+                quantity INT DEFAULT 0,
+                quantity_foil INT DEFAULT 0,
+                created_at DATETIME DEFAULT GETDATE(),
+                PRIMARY KEY (user_collection_id, label_id),
+                FOREIGN KEY (user_collection_id) REFERENCES UserCollection(id) ON DELETE CASCADE,
+                FOREIGN KEY (label_id) REFERENCES UserLabel(id) ON DELETE CASCADE
+            )
+        END
+    ''')
+    cursor.execute('''
+        IF COL_LENGTH('dbo.UserCollectionLabel', 'quantity') IS NULL
+        BEGIN
+            ALTER TABLE UserCollectionLabel ADD quantity INT DEFAULT 0
+        END
+    ''')
+    cursor.execute('''
+        IF COL_LENGTH('dbo.UserCollectionLabel', 'quantity_foil') IS NULL
+        BEGIN
+            ALTER TABLE UserCollectionLabel ADD quantity_foil INT DEFAULT 0
+        END
+    ''')
+    cursor.execute('''
+        UPDATE ucl
+        SET quantity = uc.quantity,
+            quantity_foil = uc.quantity_foil
+        FROM UserCollectionLabel ucl
+        JOIN UserCollection uc ON ucl.user_collection_id = uc.id
+        WHERE ISNULL(ucl.quantity, 0) = 0
+          AND ISNULL(ucl.quantity_foil, 0) = 0
+          AND (ISNULL(uc.quantity, 0) > 0 OR ISNULL(uc.quantity_foil, 0) > 0)
+    ''')
+
+
+def _attach_collection_labels(cursor, user_id: int, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not items:
+        return items
+
+    ensure_user_label_tables(cursor)
+    collection_ids = [int(item["user_collection_id"]) for item in items if item.get("user_collection_id")]
+    if not collection_ids:
+        return items
+
+    placeholders = ",".join(["%s"] * len(collection_ids))
+    cursor.execute(f'''
+        SELECT ucl.user_collection_id, ul.id, ul.name, ucl.quantity, ucl.quantity_foil
+        FROM UserCollectionLabel ucl
+        JOIN UserLabel ul ON ucl.label_id = ul.id
+        WHERE ul.user_id = %s AND ucl.user_collection_id IN ({placeholders})
+        ORDER BY ul.name
+    ''', tuple([user_id, *collection_ids]))
+
+    labels_by_collection: Dict[int, List[Dict[str, Any]]] = {}
+    for row in cursor.fetchall():
+        collection_id = int(row["user_collection_id"] if isinstance(row, dict) else row[0])
+        label_id = int(row["id"] if isinstance(row, dict) else row[1])
+        label_name = row["name"] if isinstance(row, dict) else row[2]
+        quantity = int((row["quantity"] if isinstance(row, dict) else row[3]) or 0)
+        quantity_foil = int((row["quantity_foil"] if isinstance(row, dict) else row[4]) or 0)
+        labels_by_collection.setdefault(collection_id, []).append({"id": label_id, "name": label_name, "quantity": quantity, "quantity_foil": quantity_foil})
+
+    for item in items:
+        collection_id = int(item.get("user_collection_id") or 0)
+        item["labels"] = labels_by_collection.get(collection_id, [])
+
+    return items
+
+
 def get_user_collection(user_id: int, tcg_id: int = None) -> List[Dict[str, Any]]:
     """Return the user's collection. If tcg_id is provided, filter cards to that TCG."""
     with get_connection() as conn:
         cursor = conn.cursor(as_dict=True)
+        ensure_user_label_tables(cursor)
         # Return card + expansion + card detail + user collection quantity in a single result
         if tcg_id:
             cursor.execute('''
@@ -311,7 +400,159 @@ def get_user_collection(user_id: int, tcg_id: int = None) -> List[Dict[str, Any]
                 LEFT JOIN CardDetail d ON c.id = d.card_id
                 WHERE uc.user_id = %s
             ''', (user_id,))
+        return _attach_collection_labels(cursor, user_id, list(cursor.fetchall()))
+
+
+def get_user_labels(user_id: int) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        cursor = conn.cursor(as_dict=True)
+        ensure_user_label_tables(cursor)
+        cursor.execute('''
+            SELECT id, name, created_at
+            FROM UserLabel
+            WHERE user_id = %s
+            ORDER BY name
+        ''', (user_id,))
         return list(cursor.fetchall())
+
+
+def create_user_label(user_id: int, name: str) -> Dict[str, Any]:
+    label_name = name.strip()
+    with get_connection() as conn:
+        cursor = conn.cursor(as_dict=True)
+        ensure_user_label_tables(cursor)
+        cursor.execute("SELECT id, name, created_at FROM UserLabel WHERE user_id=%s AND LOWER(name)=LOWER(%s)", (user_id, label_name))
+        existing = cursor.fetchone()
+        if existing:
+            return existing
+
+        cursor.execute("INSERT INTO UserLabel (user_id, name, created_at) VALUES (%s, %s, GETDATE())", (user_id, label_name))
+        conn.commit()
+        cursor.execute("SELECT id, name, created_at FROM UserLabel WHERE user_id=%s AND name=%s", (user_id, label_name))
+        return cursor.fetchone()
+
+
+def update_user_label(user_id: int, label_id: int, name: str) -> Dict[str, Any] | None:
+    label_name = name.strip()
+    with get_connection() as conn:
+        cursor = conn.cursor(as_dict=True)
+        ensure_user_label_tables(cursor)
+        cursor.execute("SELECT id FROM UserLabel WHERE user_id=%s AND id=%s", (user_id, label_id))
+        if not cursor.fetchone():
+            return None
+
+        cursor.execute("SELECT id, name, created_at FROM UserLabel WHERE user_id=%s AND LOWER(name)=LOWER(%s) AND id<>%s", (user_id, label_name, label_id))
+        existing = cursor.fetchone()
+        if existing:
+            return existing
+
+        cursor.execute("UPDATE UserLabel SET name=%s WHERE user_id=%s AND id=%s", (label_name, user_id, label_id))
+        conn.commit()
+        cursor.execute("SELECT id, name, created_at FROM UserLabel WHERE user_id=%s AND id=%s", (user_id, label_id))
+        return cursor.fetchone()
+
+
+def delete_user_label(user_id: int, label_id: int) -> bool:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        ensure_user_label_tables(cursor)
+        cursor.execute("SELECT id FROM UserLabel WHERE user_id=%s AND id=%s", (user_id, label_id))
+        if not cursor.fetchone():
+            return False
+
+        cursor.execute("DELETE ucl FROM UserCollectionLabel ucl JOIN UserLabel ul ON ucl.label_id=ul.id WHERE ul.user_id=%s AND ul.id=%s", (user_id, label_id))
+        cursor.execute("DELETE FROM UserLabel WHERE user_id=%s AND id=%s", (user_id, label_id))
+        conn.commit()
+        return True
+
+
+def _normalize_owned_label_ids(cursor, user_id: int, label_ids: List[int]) -> List[int]:
+    ensure_user_label_tables(cursor)
+    normalized_ids = sorted({int(label_id) for label_id in label_ids if label_id})
+    if not normalized_ids:
+        return []
+
+    placeholders = ",".join(["%s"] * len(normalized_ids))
+    cursor.execute(f"SELECT id FROM UserLabel WHERE user_id=%s AND id IN ({placeholders})", tuple([user_id, *normalized_ids]))
+    return [int(row[0]) for row in cursor.fetchall()]
+
+
+def set_user_collection_labels(user_id: int, user_collection_id: int, label_ids: List[int]) -> bool:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        ensure_user_label_tables(cursor)
+        cursor.execute("SELECT id, quantity, quantity_foil FROM UserCollection WHERE id=%s AND user_id=%s", (user_collection_id, user_id))
+        row = cursor.fetchone()
+        if not row:
+            return False
+
+        quantity = int(row[1] or 0)
+        quantity_foil = int(row[2] or 0)
+
+        owned_label_ids = _normalize_owned_label_ids(cursor, user_id, label_ids)
+        cursor.execute("DELETE FROM UserCollectionLabel WHERE user_collection_id=%s", (user_collection_id,))
+        for label_id in owned_label_ids:
+            cursor.execute("INSERT INTO UserCollectionLabel (user_collection_id, label_id, quantity, quantity_foil, created_at) VALUES (%s, %s, %s, %s, GETDATE())", (user_collection_id, label_id, quantity, quantity_foil))
+        conn.commit()
+        return True
+
+
+def add_labels_to_user_collection(cursor, user_id: int, user_collection_id: int, label_ids: List[int], quantity: int = 0, quantity_foil: int = 0):
+    owned_label_ids = _normalize_owned_label_ids(cursor, user_id, label_ids)
+    for label_id in owned_label_ids:
+        cursor.execute('''
+            IF EXISTS (SELECT 1 FROM UserCollectionLabel WHERE user_collection_id=%s AND label_id=%s)
+            BEGIN
+                UPDATE UserCollectionLabel
+                SET quantity=quantity+%s, quantity_foil=quantity_foil+%s
+                WHERE user_collection_id=%s AND label_id=%s
+            END
+            ELSE
+            BEGIN
+                INSERT INTO UserCollectionLabel (user_collection_id, label_id, quantity, quantity_foil, created_at) VALUES (%s, %s, %s, %s, GETDATE())
+            END
+        ''', (user_collection_id, label_id, quantity, quantity_foil, user_collection_id, label_id, user_collection_id, label_id, quantity, quantity_foil))
+
+
+def add_label_quantities_to_user_collection(cursor, user_id: int, user_collection_id: int, label_quantities: Dict[int, int], label_foil_quantities: Dict[int, int] | None = None):
+    label_foil_quantities = label_foil_quantities or {}
+    label_ids = list(label_quantities.keys()) + list(label_foil_quantities.keys())
+    owned_label_ids = _normalize_owned_label_ids(cursor, user_id, label_ids)
+    for label_id in owned_label_ids:
+        quantity = max(0, int(label_quantities.get(label_id, 0) or 0))
+        quantity_foil = max(0, int(label_foil_quantities.get(label_id, 0) or 0))
+        if quantity <= 0 and quantity_foil <= 0:
+            continue
+        cursor.execute('''
+            IF EXISTS (SELECT 1 FROM UserCollectionLabel WHERE user_collection_id=%s AND label_id=%s)
+            BEGIN
+                UPDATE UserCollectionLabel
+                SET quantity=quantity+%s, quantity_foil=quantity_foil+%s
+                WHERE user_collection_id=%s AND label_id=%s
+            END
+            ELSE
+            BEGIN
+                INSERT INTO UserCollectionLabel (user_collection_id, label_id, quantity, quantity_foil, created_at) VALUES (%s, %s, %s, %s, GETDATE())
+            END
+        ''', (user_collection_id, label_id, quantity, quantity_foil, user_collection_id, label_id, user_collection_id, label_id, quantity, quantity_foil))
+
+
+def remove_labels_from_user_collection(cursor, user_id: int, user_collection_id: int, label_quantities: Dict[int, int], label_foil_quantities: Dict[int, int] | None = None):
+    label_foil_quantities = label_foil_quantities or {}
+    label_ids = list(label_quantities.keys()) + list(label_foil_quantities.keys())
+    owned_label_ids = _normalize_owned_label_ids(cursor, user_id, label_ids)
+    for label_id in owned_label_ids:
+        quantity = max(0, int(label_quantities.get(label_id, 0) or 0))
+        quantity_foil = max(0, int(label_foil_quantities.get(label_id, 0) or 0))
+        if quantity <= 0 and quantity_foil <= 0:
+            continue
+        cursor.execute('''
+            UPDATE UserCollectionLabel
+            SET quantity=CASE WHEN quantity-%s < 0 THEN 0 ELSE quantity-%s END,
+                quantity_foil=CASE WHEN quantity_foil-%s < 0 THEN 0 ELSE quantity_foil-%s END
+            WHERE user_collection_id=%s AND label_id=%s
+        ''', (quantity, quantity, quantity_foil, quantity_foil, user_collection_id, label_id))
+        cursor.execute("DELETE FROM UserCollectionLabel WHERE user_collection_id=%s AND label_id=%s AND quantity<=0 AND quantity_foil<=0", (user_collection_id, label_id))
 
 
 def get_user_id_by_username(username: str) -> Any:
@@ -347,7 +588,7 @@ def add_card_to_user_collection(user_id: int, card_id: int, quantity: int = 1, q
             return int(cursor.fetchone()[0])
 
 
-def remove_card_from_user_collection(user_id: int, card_id: int, quantity: int = 1, quantity_foil: int = 0) -> bool:
+def remove_card_from_user_collection(user_id: int, card_id: int, quantity: int = 1, quantity_foil: int = 0, label_id: int | None = None) -> bool:
     """Remove quantity from user's collection. If totals drop to 0, delete the row. Returns True if changed."""
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -356,6 +597,8 @@ def remove_card_from_user_collection(user_id: int, card_id: int, quantity: int =
         if not row:
             return False
         uc_id, existing_q, existing_qf = int(row[0]), int(row[1] or 0), int(row[2] or 0)
+        if label_id:
+            remove_labels_from_user_collection(cursor, user_id, uc_id, {int(label_id): quantity}, {int(label_id): quantity_foil})
         new_q = max(0, existing_q - (quantity or 0))
         new_qf = max(0, existing_qf - (quantity_foil or 0))
         if new_q == 0 and new_qf == 0:
@@ -378,11 +621,28 @@ def _resolve_card_id(cursor, card_id: int | None = None, card_market_id: int | N
     return int(row[0]) if row else None
 
 
-def bulk_add_cards_to_user_collection(user_id: int, items: List[Dict[str, Any]]):
+def _normalize_label_quantity_map(values: Dict[Any, Any] | None) -> Dict[int, int]:
+    normalized: Dict[int, int] = {}
+    for key, value in (values or {}).items():
+        try:
+            label_id = int(key)
+            quantity = int(value or 0)
+        except (TypeError, ValueError):
+            continue
+        if label_id and quantity > 0:
+            normalized[label_id] = normalized.get(label_id, 0) + quantity
+    return normalized
+
+
+def bulk_add_cards_to_user_collection(user_id: int, items: List[Dict[str, Any]], label_ids: List[int] | None = None, label_quantities: Dict[Any, Any] | None = None, label_foil_quantities: Dict[Any, Any] | None = None):
     with get_connection() as conn:
         cursor = conn.cursor()
+        ensure_user_label_tables(cursor)
         changed = 0
         skipped = 0
+        label_quantities = _normalize_label_quantity_map(label_quantities)
+        label_foil_quantities = _normalize_label_quantity_map(label_foil_quantities)
+        fallback_label_ids = _normalize_owned_label_ids(cursor, user_id, label_ids or [])
 
         for item in items:
             card_id = _resolve_card_id(cursor, item.get("card_id"), item.get("card_market_id"))
@@ -402,17 +662,29 @@ def bulk_add_cards_to_user_collection(user_id: int, items: List[Dict[str, Any]])
                 cursor.execute("UPDATE UserCollection SET quantity=%s, quantity_foil=%s, last_updated=GETDATE() WHERE id=%s", (new_q, new_qf, uc_id))
             else:
                 cursor.execute("INSERT INTO UserCollection (user_id, card_id, quantity, quantity_foil, last_updated) VALUES (%s, %s, %s, %s, GETDATE())", (user_id, card_id, quantity, quantity_foil))
+                cursor.execute("SELECT SCOPE_IDENTITY()")
+                uc_id = int(cursor.fetchone()[0])
+
+            item_label_quantities = _normalize_label_quantity_map(item.get("label_quantities")) or label_quantities
+            item_label_foil_quantities = _normalize_label_quantity_map(item.get("label_foil_quantities")) or label_foil_quantities
+            if item_label_quantities or item_label_foil_quantities:
+                add_label_quantities_to_user_collection(cursor, user_id, uc_id, item_label_quantities, item_label_foil_quantities)
+            elif fallback_label_ids:
+                add_labels_to_user_collection(cursor, user_id, uc_id, fallback_label_ids, quantity, quantity_foil)
             changed += 1
 
         conn.commit()
-        return {"success": True, "processed": len(items), "changed": changed, "skipped": skipped}
+        return {"success": True, "processed": len(items), "changed": changed, "skipped": skipped, "labeled": len(fallback_label_ids) if fallback_label_ids else len(label_quantities)}
 
 
-def bulk_remove_cards_from_user_collection(user_id: int, items: List[Dict[str, Any]]):
+def bulk_remove_cards_from_user_collection(user_id: int, items: List[Dict[str, Any]], label_quantities: Dict[Any, Any] | None = None, label_foil_quantities: Dict[Any, Any] | None = None):
     with get_connection() as conn:
         cursor = conn.cursor()
+        ensure_user_label_tables(cursor)
         changed = 0
         skipped = 0
+        label_quantities = _normalize_label_quantity_map(label_quantities)
+        label_foil_quantities = _normalize_label_quantity_map(label_foil_quantities)
 
         for item in items:
             card_id = _resolve_card_id(cursor, item.get("card_id"), item.get("card_market_id"))
@@ -430,6 +702,10 @@ def bulk_remove_cards_from_user_collection(user_id: int, items: List[Dict[str, A
                 continue
 
             uc_id, existing_q, existing_qf = int(row[0]), int(row[1] or 0), int(row[2] or 0)
+            item_label_quantities = _normalize_label_quantity_map(item.get("label_quantities")) or label_quantities
+            item_label_foil_quantities = _normalize_label_quantity_map(item.get("label_foil_quantities")) or label_foil_quantities
+            if item_label_quantities or item_label_foil_quantities:
+                remove_labels_from_user_collection(cursor, user_id, uc_id, item_label_quantities, item_label_foil_quantities)
             new_q = max(0, existing_q - quantity)
             new_qf = max(0, existing_qf - quantity_foil)
             if new_q == 0 and new_qf == 0:

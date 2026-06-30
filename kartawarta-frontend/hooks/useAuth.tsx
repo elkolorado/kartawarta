@@ -15,7 +15,7 @@ type AuthContextValue = {
   session: string | null;
   isLoading: boolean;
   fetchWithAuth: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  bulkUpdateCollection: (action: 'add' | 'remove', items: Array<{ card_id?: number; card_market_id?: number; quantity?: number; quantity_foil?: number }>) => Promise<boolean>;
+  bulkUpdateCollection: (action: 'add' | 'remove', items: Array<{ card_id?: number; card_market_id?: number; quantity?: number; quantity_foil?: number; label_quantities?: Record<number, number>; label_foil_quantities?: Record<number, number> }>, labelIds?: number[], labelQuantities?: Record<number, number>, labelFoilQuantities?: Record<number, number>) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -329,12 +329,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const bulkUpdateCollection = async (action: 'add' | 'remove', items: Array<{ card_id?: number; card_market_id?: number; quantity?: number; quantity_foil?: number }>) => {
+  const bulkUpdateCollection = async (action: 'add' | 'remove', items: Array<{ card_id?: number; card_market_id?: number; quantity?: number; quantity_foil?: number; label_quantities?: Record<number, number>; label_foil_quantities?: Record<number, number> }>, labelIds: number[] = [], labelQuantities: Record<number, number> = {}, labelFoilQuantities: Record<number, number> = {}) => {
     try {
       const response = await fetchWithAuth(`${CARDS_API_ENDPOINT}/collection/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, items }),
+        body: JSON.stringify({ action, items, label_ids: labelIds, label_quantities: labelQuantities, label_foil_quantities: labelFoilQuantities }),
       });
 
       if (!response.ok) {
