@@ -7,6 +7,7 @@ import TopHeader from "@/components/topHeader";
 import { Platform } from "react-native";
 import { TAB_ROUTES } from "@/constants/tabRoutes";
 import { colors } from "@/constants/themeColors";
+import "@/style/globals.css";
 export default function RootLayout() {
   return (
     <SessionProvider>
