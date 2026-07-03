@@ -26,15 +26,131 @@ interface Props {
 
 
 const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimmed = false, displayQuantity, activeLabelIds = [], selectable = false, selected = false, selectionActive = false, onToggleSelect }) => {
-  
+
   let imageUrl = ''
-  if(card.cardMarketId == 756835){
+  let exceptions = [
+    "756524",
+    "756531",
+    "756532",
+    "756834",
+    "756835",
+    "756836",
+    "756837",
+    "756850",
+    "756851",
+    "756857",
+    "756858",
+    "756860",
+    "756861",
+    "757123",
+    "757124",
+    "757125",
+    "760154",
+    "769057",
+    "769058",
+    "769070",
+    "769071",
+    "769073",
+    "769074",
+    "769077",
+    "769078",
+    "769571",
+    "782861",
+    "782862",
+    "782870",
+    "782871",
+    "782878",
+    "782879",
+    "782883",
+    "782884",
+    "799740",
+    "799743",
+    "800425",
+    "800427",
+    "800519",
+    "800520",
+    "800526",
+    "800527",
+    "800735",
+    "800737",
+    "800738",
+    "809377",
+    "810470",
+    "810472",
+    "810484",
+    "810485",
+    "810498",
+    "810499",
+    "810501",
+    "810502",
+    "810640",
+    "823589",
+    "823590",
+    "823591",
+    "823592",
+    "823599",
+    "823600",
+    "831557",
+    "831558",
+    "831563",
+    "831573",
+    "840230",
+    "840263",
+    "849829",
+    "849831",
+    "849837",
+    "849855",
+    "849856",
+    "849863",
+    "849864",
+    "849868",
+    "849869",
+    "850062",
+    "859086",
+    "859095",
+    "859100",
+    "862301",
+    "862302",
+    "862308",
+    "862309",
+    "862311",
+    "862312",
+    "862315",
+    "862316",
+    "862837",
+    "862838",
+    "862839",
+    "864822",
+    "874943",
+    "876647",
+    "876648",
+    "876649",
+    "876661",
+    "876662",
+    "876666",
+    "876667",
+    "876668",
+    "876669",
+    "876807",
+    "876808",
+    "876809",
+    "883653",
+    "892726",
+    "892728",
+    "892751",
+    "892752",
+    "892767",
+    "892768",
+    "892795",
+    "892849"
+  ]
+  if (exceptions.includes(String(card.cardMarketId))) {
     imageUrl = `${API_ENDPOINT}/card-image/${card.tcg_id}/${card.cardMarketId}.webp`;
   } else {
     imageUrl = `${API_ENDPOINT}/card-image/${card.tcg_id}/${card.cardMarketId}.png`;
-    
-  } 
-  
+
+  }
+
   const name = card.name || 'Unknown';
   const price = card.from_price;
   const priceTrend = card.price_trend ? card.price_trend : (!card.avg && !card.avg_1d) ? card.trend_foil : null;
@@ -182,54 +298,54 @@ const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimm
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-      {selectable && (isHovered || selected || selectionActive) && (
-        <Pressable
-          style={[styles.selectOverlay, selected && styles.selectOverlayActive]}
-          onPress={(event: any) => {
-            event?.stopPropagation?.();
-            onToggleSelect?.(event);
-          }}
-        >
-          {selected ? <FontAwesome6 name="check" size={13} color={colors.background} /> : null}
-        </Pressable>
-      )}
-      <Image
-        source={imageUrl}
-        style={[
-          styles.image, 
-          // Grayscale filter works directly on expo-image
-          dimmed && ({ filter: 'grayscale(1)'} as any) 
-        ]}
-        contentFit="contain"
-        transition={200} // Smooth fade-in
-        placeholderContentFit="contain"
-      />
+        {selectable && (isHovered || selected || selectionActive) && (
+          <Pressable
+            style={[styles.selectOverlay, selected && styles.selectOverlayActive]}
+            onPress={(event: any) => {
+              event?.stopPropagation?.();
+              onToggleSelect?.(event);
+            }}
+          >
+            {selected ? <FontAwesome6 name="check" size={13} color={colors.background} /> : null}
+          </Pressable>
+        )}
+        <Image
+          source={imageUrl}
+          style={[
+            styles.image,
+            // Grayscale filter works directly on expo-image
+            dimmed && ({ filter: 'grayscale(1)' } as any)
+          ]}
+          contentFit="contain"
+          transition={200} // Smooth fade-in
+          placeholderContentFit="contain"
+        />
 
-      <View style={styles.meta}>
-        <Text numberOfLines={1} style={styles.name}>{name}</Text>
-        <View style={styles.row}>
-         <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-          {typeof price === 'number' ? `${price}€` : (price ? String(price) : '-')}
-         </Text>
-          {priceTrend && (
-           <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+        <View style={styles.meta}>
+          <Text numberOfLines={1} style={styles.name}>{name}</Text>
+          <View style={styles.row}>
+            <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {typeof price === 'number' ? `${price}€` : (price ? String(price) : '-')}
+            </Text>
+            {priceTrend && (
+              <Text style={styles.price} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                 <FontAwesome6 name="arrow-trend-up" size={14} /> {Number(priceTrend)}€
-             </Text>
+              </Text>
+            )}
+          </View>
+
+          {showCollection && (
+            <View style={styles.collectionRow}>
+              <TouchableOpacity onPress={handleRemove} style={styles.qtyBtn}>
+                <Text style={styles.qtyBtnText}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.qtyText}>{collectionQty}</Text>
+              <TouchableOpacity onPress={handleAdd} style={styles.qtyBtn}>
+                <Text style={styles.qtyBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
-
-        {showCollection && (
-          <View style={styles.collectionRow}>
-            <TouchableOpacity onPress={handleRemove} style={styles.qtyBtn}>
-              <Text style={styles.qtyBtnText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.qtyText}>{collectionQty}</Text>
-            <TouchableOpacity onPress={handleAdd} style={styles.qtyBtn}>
-              <Text style={styles.qtyBtnText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
       </TouchableOpacity>
     </>
   );
@@ -268,7 +384,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     // Typical trading card aspect ratio is 2.5 / 3.5
-    aspectRatio: 0.714, 
+    aspectRatio: 0.714,
     backgroundColor: '#1a1a1a',
   },
   meta: {
