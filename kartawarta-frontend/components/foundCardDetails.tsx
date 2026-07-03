@@ -78,7 +78,14 @@ const CompactActionButton: React.FC<CompactActionButtonProps> = ({ label, icon, 
 
 const getMatchImageUri = (cardInfo?: CardMarketCard, result?: string) => {
     if (cardInfo?.tcg_id && cardInfo?.cardMarketId) {
-        return `${API_ENDPOINT}/card-image/${cardInfo.tcg_id}/${cardInfo.cardMarketId}.png`;
+        let imageUrl = '';
+          if(cardInfo.cardMarketId == 756835){
+            imageUrl = `${API_ENDPOINT}/card-image/${cardInfo.tcg_id}/${cardInfo.cardMarketId}.webp`;
+          } else {
+            imageUrl = `${API_ENDPOINT}/card-image/${cardInfo.tcg_id}/${cardInfo.cardMarketId}.png`;
+            
+          } 
+        return imageUrl;
     }
 
     if (!result) return null;

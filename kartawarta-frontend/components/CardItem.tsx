@@ -26,7 +26,14 @@ interface Props {
 
 
 const CardItem: React.FC<Props> = ({ card, onPress, showCollection = false, dimmed = false, displayQuantity, activeLabelIds = [], selectable = false, selected = false, selectionActive = false, onToggleSelect }) => {
-  const imageUrl = `${API_ENDPOINT}/card-image/${card.tcg_id}/${card.cardMarketId}.png`;
+  
+  let imageUrl = ''
+  if(card.cardMarketId == 756835){
+    imageUrl = `${API_ENDPOINT}/card-image/${card.tcg_id}/${card.cardMarketId}.webp`;
+  } else {
+    imageUrl = `${API_ENDPOINT}/card-image/${card.tcg_id}/${card.cardMarketId}.png`;
+    
+  } 
   
   const name = card.name || 'Unknown';
   const price = card.from_price;

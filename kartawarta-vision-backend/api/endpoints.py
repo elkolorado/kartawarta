@@ -11,7 +11,7 @@ from core.tcg_manager import tcg_manager
 router = APIRouter()
 
 CARD_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
-ALLOWED_EXT = {"jpg", "png"}
+ALLOWED_EXT = {"jpg", "png", "webp"}
 
 
 @router.post("/matchCard")
@@ -38,7 +38,8 @@ async def match_card_api(request: Request, file: UploadFile = File(...), tcg_nam
     filenames = tcg_manager.filenames.get(tcg_folder)
 
     if faiss_index is None or filenames is None:
-        raise HTTPException(status_code=400, detail="Unsupported or unloaded TCG")
+        raise HTTPException(
+            status_code=400, detail="Unsupported or unloaded TCG")
 
     async with sem:
         loop = asyncio.get_running_loop()
@@ -72,10 +73,17 @@ async def get_card_image(tcg_id: int, cardMarketId: str, extension: str):
 
     tcg_name = tcg.tcg_name
     base = os.path.abspath(str(core_config.settings.images_path))
-    path = os.path.abspath(os.path.join(base, f"{tcg_name}/{cardMarketId}.{extension}"))
+    path = os.path.abspath(os.path.join(
+        base, f"{tcg_name}/{cardMarketId}.{extension}"))
     if not path.startswith(base) or not os.path.exists(path):
         raise HTTPException(status_code=404)
 
+    if (extension == "webp"):
+        return FileResponse(
+            path,
+            media_type="image/webp",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
     return FileResponse(
         path,
         media_type="image/jpeg" if extension == "jpg" else "image/png",
