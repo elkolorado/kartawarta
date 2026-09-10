@@ -28,6 +28,7 @@ services:
       DB_DATABASE: ${DB_DATABASE:-cardmarket}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       GOOGLE_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-413150772909-62etgu7foj922uqaioic0h7p9fv4jeri.apps.googleusercontent.com}
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-fc-9972a84c1ac547e28eee2d2c039ba7c5}
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -66,6 +67,22 @@ services:
   ingest-riftbound:
     build: ./kartawarta-backend
     command: python dataingestion.py -s riftbound
+    environment: *backend-env
+    volumes:
+      - ./card_images:/app/card_images
+      - ./indexes:/app/indexes
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    profiles:
+      - ingestion
+    restart: "no"
+
+  ingest-cyberpunk:
+    build: ./kartawarta-backend
+    command: python dataingestion.py -s cyberpunk
     environment: *backend-env
     volumes:
       - ./card_images:/app/card_images

@@ -70,3 +70,8 @@ services:
     mem_limit: 512m
     memswap_limit: 512m
     cpus: 0.50
+
+  ingest-cyberpunk:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 0.50

@@ -78,7 +78,8 @@ def prepare_database():
         (4, 'Magic: The Gathering', 'Magic'),
         (5, 'Riftbound', 'Riftbound'),
         (1006, 'Pokemon', 'Pokemon'),
-        (1007, 'Digimon', 'Digimon')
+        (1007, 'Digimon', 'Digimon'),
+        (1008, 'Cyberpunk', 'Cyberpunk')
     ]
 
     # Enable explicit ID insertion for IDENTITY columns

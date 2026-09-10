@@ -728,14 +728,25 @@ def get_connection():
 
 # Example insert functions (to be expanded for all tables)
 
-def get_or_create_tcg(name: str) -> int:
+def get_or_create_tcg(name: str, cardmarket_name: str | None = None, tcg_id: int | None = None) -> int:
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM TCG WHERE name=%s", (name,))
+        cursor.execute("SELECT id, cardMarketName FROM TCG WHERE name=%s", (name,))
         row = cursor.fetchone()
         if row:
+            if cardmarket_name and not row[1]:
+                cursor.execute("UPDATE TCG SET cardMarketName=%s WHERE id=%s", (cardmarket_name, row[0]))
+                conn.commit()
             return int(row[0])
-        cursor.execute("INSERT INTO TCG (name) VALUES (%s)", (name,))
+
+        if tcg_id is not None:
+            cursor.execute("SET IDENTITY_INSERT [TCG] ON")
+            cursor.execute("INSERT INTO TCG (id, name, cardMarketName) VALUES (%s, %s, %s)", (tcg_id, name, cardmarket_name))
+            cursor.execute("SET IDENTITY_INSERT [TCG] OFF")
+            conn.commit()
+            return tcg_id
+
+        cursor.execute("INSERT INTO TCG (name, cardMarketName) VALUES (%s, %s)", (name, cardmarket_name))
         conn.commit()
         cursor.execute("SELECT SCOPE_IDENTITY()")
         return int(cursor.fetchone()[0])

@@ -11,6 +11,7 @@ export const DEFAULT_TCG_NAME = 'DragonBallSuper';
 export const AVAILABLE_TCGS: AvailableTcg[] = [
   { id: 1, name: 'DragonBallSuper', slug: 'DragonBallSuper', label: 'Fusion World', color: '#3b82f6' },
   { id: 5, name: 'riftbound', slug: 'riftbound', label: 'Riftbound', color: '#7c3aed' },
+  { id: 1008, name: 'Cyberpunk', slug: 'cyberpunk', label: 'Cyberpunk', color: '#facc15' },
 ];
 
 export const DEFAULT_TCG = AVAILABLE_TCGS[0];

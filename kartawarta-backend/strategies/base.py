@@ -1,3 +1,5 @@
+import json
+import os
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 from typing import List, Optional
@@ -13,14 +15,21 @@ from pathlib import Path
 import cloudscraper
 import re
 from datetime import datetime
+from scraper.firecrawl import FirecrawlScraper
+
+
 
 
 @lru_cache(maxsize=None)
 def fetch_tcgpowertools_rarity_map(game_id: int) -> dict[int, str]:
     """Fetch a cardMarketId -> rarity map from tcgpowertools CSV exports."""
     csv_url = f"https://new.tcgpowertools.com/resourceFile/csvProducts_new_{game_id}.csv"
-    resp = requests.get(csv_url, timeout=30)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(csv_url, timeout=30)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"Warning: Could not fetch tcgpowertools rarity CSV for game_id={game_id}: {exc}")
+        return {}
 
     rarity_map: dict[int, str] = {}
     reader = csv.DictReader(StringIO(resp.text))
@@ -44,6 +53,7 @@ class CardmarketStrategy:
     cm_products_json_path: str = ""
     cm_price_guide_json_path: str = ""
     tcg_id: str = ""  # Will be set in __init__
+    tcg_db_id: Optional[int] = None
     tcgpowertools_game_id: Optional[int] = None
 
     def __init__(self):
@@ -56,7 +66,7 @@ class CardmarketStrategy:
                 f"Subclass {self.__class__.__name__} must define 'tcg_name'."
             )
 
-        self.tcg_id = db.get_or_create_tcg(self.tcg_name)
+        self.tcg_id = db.get_or_create_tcg(self.tcg_name, self.tcg_cm_name, self.tcg_db_id)
         print(
             f"Initialized strategy for TCG '{self.tcg_name}' with ID {self.tcg_id}.")
 
@@ -210,7 +220,7 @@ class CardmarketStrategy:
         data = resp.json()
         products = data.get('products') if isinstance(
             data, dict) else data or []
-        
+
         # only expansion id 4284
         # products = [p for p in products if p.get('idExpansion') == 6006]
 
@@ -251,7 +261,7 @@ class CardmarketStrategy:
         p_index = 0
 
         download_jobs = []
-        print(f"Processing {len(products)} products for image download..."  )
+        print(f"Processing {len(products)} products for image download...")
 
         for p in products:
             p_index += 1
@@ -290,7 +300,7 @@ class CardmarketStrategy:
                 continue
 
             # --- URL CODE EXCEPTION ---
-            # Even though we mapped to 5645 for the DB, the images are stored 
+            # Even though we mapped to 5645 for the DB, the images are stored
             # under 'UP' in the S3 bucket for these specific cards.
             final_exp_code = "UP" if is_exception else cached
             # ---------------------------
@@ -348,7 +358,6 @@ class CardmarketStrategy:
                     return "failed"
 
             return "failed"
-        
 
         success = skipped = failed = 0
         MAX_WORKERS = 12
@@ -378,8 +387,6 @@ class CardmarketStrategy:
                     )
         return {'success': success, 'skipped': skipped, 'failed': failed, 'total': len(products)}
 
-
-
     def import_products_json_to_db(self, products_json_url: str, id_field: str = 'idProduct', expansion_field: str = 'idExpansion') -> dict:
         print(f"Importing products from: {products_json_url}")
         resp = requests.get(products_json_url, timeout=30)
@@ -387,11 +394,11 @@ class CardmarketStrategy:
         data = resp.json()
         products = data.get('products') if isinstance(
             data, dict) else data or []
-
+        print(f"Fetched {len(products)} products from JSON.")
         rarity_map = {}
         if self.tcgpowertools_game_id is not None:
-            rarity_map = fetch_tcgpowertools_rarity_map(self.tcgpowertools_game_id)
-
+            rarity_map = fetch_tcgpowertools_rarity_map(
+                self.tcgpowertools_game_id)
 
         # OnePiece
         if self.tcg_id == 3:
@@ -402,7 +409,7 @@ class CardmarketStrategy:
                 p for p in products
                 if p.get('idExpansion') in valid_expansion_ids
             ]
-            
+
         # Fusion World filtering
         if self.tcg_id == 1:
             expansions = db.get_expansions_by_tcg_id(self.tcg_id)
@@ -415,6 +422,7 @@ class CardmarketStrategy:
             ]
 
         print("")
+        print(f"Processing {len(products)} products for DB import...")
         expansion_cache = {}
         batch_data = []
         skipped = 0
@@ -445,11 +453,12 @@ class CardmarketStrategy:
                 with db.get_connection() as conn:
                     cursor = conn.cursor()
                     cursor.execute(
-                        "SELECT id, cardMarketExpansionCode FROM Expansion WHERE cardMarketExpansionId=%s AND tcg_id=%s", 
+                        "SELECT id, cardMarketExpansionCode FROM Expansion WHERE cardMarketExpansionId=%s AND tcg_id=%s",
                         (lookup_id, self.tcg_id)
                     )
                     row = cursor.fetchone()
-                    expansion_cache[lookup_id] = (int(row[0]), row[1]) if row else None
+                    expansion_cache[lookup_id] = (
+                        int(row[0]), row[1]) if row else None
 
             cached = expansion_cache[lookup_id]
             if not cached:
@@ -480,6 +489,8 @@ class CardmarketStrategy:
 
         if batch_data:
             db.bulk_upsert_cards(batch_data)
+
+        print(f"Imported {len(batch_data)} products, skipped {skipped} products. Total products processed: {len(products)}")
 
         return {
             'success': len(batch_data),
@@ -576,31 +587,36 @@ class CardmarketStrategy:
         # Step 1: Get expansions
         exp_url = f"https://www.cardmarket.com/{lang}/{quote(cardmarkettcg_name)}/Expansions?order=chronological"
         print(f"Fetching expansions from {exp_url}")
-        exp_html = scraper.get(exp_url).text
+
+        firecrawl_scraper = FirecrawlScraper()
+        exp_html = firecrawl_scraper.scrape(exp_url)
         exp_soup = BeautifulSoup(exp_html, "html.parser")
 
         expansions = []
         for row in exp_soup.select('div.expansion-row'):
             name = row.get('data-local-name')
             code = row.get('data-url').split('/')[-1]
-            date = row.select_one('.col-3.text-center.d-none.d-md-block').text.strip() if row.select_one('.col-3.text-center.d-none.d-md-block') else None
-            print(f"Parsing expansion: name='{name}', code='{code}', date='{date}'")
+            date = row.select_one('.col-3.text-center.d-none.d-md-block').text.strip(
+            ) if row.select_one('.col-3.text-center.d-none.d-md-block') else None
+            print(
+                f"Parsing expansion: name='{name}', code='{code}', date='{date}'")
             try:
                 # Remove 'st', 'nd', 'rd', or 'th' if they follow a digit
                 clean_date = re.sub(r'(?<=\d)(st|nd|rd|th)', '', date)
-                
+
                 # Now parse the cleaned string: "31 October, 2025"
                 date_obj = datetime.strptime(clean_date, '%d %B, %Y')
                 formatted_date = date_obj.strftime('%Y-%m-%d')
                 print(formatted_date)  # Output: 2025-10-31
-                
+
             except Exception as e:
                 formatted_date = None
             symbol_el = row.select_one('.expansion-symbol span')
             cardmarketexpansioncode = None
             if symbol_el and symbol_el.text.strip():
                 cardmarketexpansioncode = symbol_el.text.strip()
-                print(f"Found expansion code '{cardmarketexpansioncode}' for expansion '{name}'")
+                print(
+                    f"Found expansion code '{cardmarketexpansioncode}' for expansion '{name}'")
                 print(f"Symbol element text: {symbol_el.text.strip()}")
                 print(f"Symbol element HTML: {symbol_el.text}")
             else:
@@ -615,7 +631,8 @@ class CardmarketStrategy:
                                 continue
                             break
                 if src:
-                    m = re.search(r'product-images\.s3\.cardmarket\.com/[^/]+/([^/]+)/', src)
+                    m = re.search(
+                        r'product-images\.s3\.cardmarket\.com/[^/]+/([^/]+)/', src)
                     if m:
                         cardmarketexpansioncode = m.group(1)
             expansions.append({
@@ -627,7 +644,7 @@ class CardmarketStrategy:
 
         # Step 2: Get expansion IDs
         singles_url = f"https://www.cardmarket.com/{lang}/{quote(cardmarkettcg_name)}/Products/Singles"
-        singles_html = scraper.get(singles_url).text
+        singles_html = firecrawl_scraper.scrape(singles_url)
         singles_soup = BeautifulSoup(singles_html, "html.parser")
 
         exp_id_map = {}
@@ -639,7 +656,6 @@ class CardmarketStrategy:
         # Step 3: Match and combine
         for exp in expansions:
             exp['cardmarketexpansionid'] = exp_id_map.get(exp['name'])
-
 
         # exception for onepiece. Only expansions that are not having (Non-English) or (Japanese) in their name are valid.
         if self.tcg_name == "One Piece":
@@ -683,8 +699,9 @@ class CardmarketStrategy:
 
         for exp in expansions:
             # Get the ID from your existing upsert method
-            expansion_id = db.upsert_expansion(self.tcg_id, exp['name'], exp['code'], exp.get('release_date'))
-            
+            expansion_id = db.upsert_expansion(
+                self.tcg_id, exp['name'], exp['code'], exp.get('release_date'))
+
             # Prepare a tuple of (CardmarketID, CardmarketCode, InternalID)
             update_data.append((
                 exp.get('cardmarketexpansionid'),
@@ -707,4 +724,3 @@ class CardmarketStrategy:
                 conn.commit()
 
         # return missing
-

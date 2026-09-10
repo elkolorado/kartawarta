@@ -33,6 +33,13 @@
       "group": { "kind": "build", "isDefault": true }
     },
     {
+      "label": "Data Ingestion - Cyberpunk",
+      "type": "shell",
+      "command": "./venv/Scripts/python kartawarta-backend/dataingestion.py -s cyberpunk",
+      "dependsOn": "Docker Start",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
       "label": "Run Backend",
       "type": "shell",
       "command": "./venv/Scripts/python kartawarta-backend/initialize.py"

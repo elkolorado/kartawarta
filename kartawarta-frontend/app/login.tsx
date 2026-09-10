@@ -91,6 +91,7 @@ export default function LoginScreen() {
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Badge label="Riftbound" bgColor="rgba(94, 53, 177, 0.12)" textColor="#c4b5fd" borderColor="rgba(124,58,237,0.2)" />
             <Badge label="Dragon Ball" bgColor="rgba(59,130,246,0.12)" textColor="#bfdbfe" borderColor="rgba(37,99,235,0.2)" />
+            <Badge label="Cyberpunk" bgColor="rgba(250, 204, 21, 0.12)" textColor="#fde68a" borderColor="rgba(250,204,21,0.2)" />
           </View>
         </View>
 

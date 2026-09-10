@@ -17,3 +17,6 @@ services:
 
   ingest-riftbound:
     ports: !reset []
+
+  ingest-cyberpunk:
+    ports: !reset []

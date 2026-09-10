@@ -5,6 +5,7 @@ tcgs:
   - name: pokemon
   - name: magic
   - name: digimon
+  - name: cyberpunk
 environments:
   dev:
     supported_tcgs:
@@ -16,6 +17,10 @@ environments:
         tcg_id: 1
         tcg_name: "DragonBallSuper"
         nprobes: 32
+      - name: cyberpunk
+        tcg_id: 1008
+        tcg_name: "Cyberpunk"
+        nprobes: 4
     card_images_path: "card_images"
     details_service_url: "http://localhost:8000"
   docker:
@@ -28,6 +33,10 @@ environments:
         tcg_id: 1
         tcg_name: "DragonBallSuper"
         nprobes: 32
+      - name: cyberpunk
+        tcg_id: 1008
+        tcg_name: "Cyberpunk"
+        nprobes: 4
     card_images_path: "/app/card_images"
     details_service_url: "http://backend:8000"
   prod:
@@ -56,5 +65,9 @@ environments:
         tcg_id: 1007
         tcg_name: "Digimon"
         nprobes: 32
+      - name: cyberpunk
+        tcg_id: 1008
+        tcg_name: "Cyberpunk"
+        nprobes: 4
     card_images_path: "/app/card_images"
     details_service_url: "http://localhost:8000"
